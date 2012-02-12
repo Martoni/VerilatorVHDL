@@ -44,6 +44,7 @@ public:
 	L1800_2005,
 	L1800_2009,
 	// ***Add new elements below also***
+	L1076_1993,
 	_ENUM_END
     };
     const char* ascii() const {
@@ -54,7 +55,8 @@ public:
 	    "1364-2001",
 	    "1364-2005",
 	    "1800-2005",
-	    "1800-2009"
+	    "1800-2009",
+            "1076-1993"
 	};
 	return names[m_e];
     };
@@ -184,6 +186,7 @@ class V3Options {
     void addIncDirUser(const string& incdir);  // User requested
     void addIncDirFallback(const string& incdir);  // Low priority if not found otherwise
     void addLibExtV(const string& libext);
+    void addLibExtVHDL(const string& libext);
     void optimize(int level);
     void showVersion(bool verbose);
     void coverage(bool flag) { m_coverageLine = m_coverageToggle = m_coverageUser = flag; }

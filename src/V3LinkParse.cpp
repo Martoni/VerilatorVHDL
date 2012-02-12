@@ -383,6 +383,82 @@ private:
 	nodep->deleteTree(); nodep=NULL;
     }
 
+    virtual void visit(AstVhdlCondalWhen* nodep, AstNUser*) {
+	static AstNode* m_condp; // Previous CondalWhen
+	static AstNode* m_topp; // Top CondalWhen
+
+	UINFO(8,"reformatting VHDL conditional assignment "<<nodep<<endl);
+	AstNode* condition = nodep->op2p()->unlinkFrBack();
+
+	if (!m_condp) { // If deepest condition
+		AstNode* final_value = nodep->op3p()->unlinkFrBack();
+		if (nodep->op1p()->castVhdlCondalWhen()) { // If recursive
+			AstNode* true_value = nodep->op1p()->op3p()->unlinkFrBack();
+			m_condp = new AstCond (nodep->fileline(), condition, true_value, final_value );
+			m_topp = nodep;
+		} else { // if not recursive
+			AstNode* true_value = nodep->op1p()->unlinkFrBack();
+			m_condp = new AstCond (nodep->fileline(), condition, true_value, final_value );
+			m_topp = NULL;
+			nodep->replaceWith (m_condp);
+			m_condp = NULL;
+		}
+		pushDeletep (nodep);
+	}
+	else if (nodep->op1p()->castVhdlCondalWhen()) { // If deeper node is VhdlCondalWhen
+		AstNode* true_value = nodep->op1p()->op3p()->unlinkFrBack();
+		m_condp = new AstCond (nodep->fileline(), condition, true_value, m_condp );
+		nodep->unlinkFrBack();
+		pushDeletep(nodep);
+	}
+	else { // If we reached top level
+		AstNode* true_value = nodep->op1p()->unlinkFrBack();
+		m_condp = new AstCond (nodep->fileline(), condition, true_value, m_condp );
+		m_topp->replaceWith (m_condp);
+		m_condp = NULL;
+		m_topp = NULL;
+		nodep->unlinkFrBack();
+		pushDeletep(nodep);
+	}
+
+	nodep->iterateChildren(*this);
+    }
+
+    virtual void visit(AstVhdlFor* nodep, AstNUser*) {
+		AstNode* m_forp;
+		AstNode* m_initp;
+		AstNode* m_condp;
+		AstNode* m_incp;
+		AstNode* m_incassignp;
+		AstNode* m_codep = NULL;
+		AstNode* m_varrefp = nodep->op1p()->unlinkFrBack();
+		AstNode* m_rangep = nodep->op2p()->unlinkFrBack();
+		AstNode* m_lowRange = m_rangep->castRange()->msbp()->unlinkFrBack(); // get lower range
+		AstNode* m_highRange = m_rangep->castRange()->lsbp()->unlinkFrBack(); // gith higher range
+		bool m_up = m_rangep->castRange()->littleEndian();
+		if (nodep->op3p())
+			m_codep	= nodep->op3p()->unlinkFrBack();
+		else
+			m_codep = NULL;
+
+		if (m_up) { // for (low to high)
+			m_initp = new AstVhdlAssignVar (nodep->fileline(), m_varrefp->cloneTree(true), m_lowRange); // initial value
+			m_condp = new AstLte (nodep->fileline(), m_varrefp->cloneTree(true), m_highRange);
+			m_incp = new AstAdd (nodep->fileline(), m_varrefp, new AstConst (nodep->fileline(), 1));
+			m_incassignp = new AstVhdlAssignVar (nodep->fileline(), m_varrefp->cloneTree(true), m_incp);
+		} else { // for (high downto low)
+			m_initp = new AstVhdlAssignVar (nodep->fileline(), m_varrefp->cloneTree(true), m_lowRange); // initial value
+			m_condp = new AstGte (nodep->fileline(), m_varrefp->cloneTree(true), m_highRange);
+			m_incp = new AstSub (nodep->fileline(), m_varrefp->cloneTree(true), new AstConst (nodep->fileline(), 1));
+			m_incassignp = new AstVhdlAssignVar (nodep->fileline(), m_varrefp->cloneTree(true), m_incp);
+		}
+
+		m_forp = m_initp;
+		m_forp->addNext(new AstWhile (nodep->fileline(),m_condp,m_codep, m_incassignp));
+		nodep->replaceWith (m_forp);
+		nodep->iterateChildren(*this);
+	}
+
     virtual void visit(AstNode* nodep, AstNUser*) {
 	// Default: Just iterate
 	cleanFileline(nodep);

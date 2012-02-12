@@ -101,6 +101,7 @@ private:
     // Below state needs to be preserved between each module call.
     AstNodeModule*	m_modp;		// Current module
     V3SymTable  	m_mods;		// Symbol table of all module names
+    V3SymTable  	m_vhdl_entities;// Symbol table of all the vhdl entities names
     LinkCellsGraph	m_graph;	// Linked graph of all cell interconnects
     LibraryVertex*	m_libVertexp;	// Vertex at root of all libraries
     V3GraphVertex*	m_topVertexp;	// Vertex of top module
@@ -170,6 +171,48 @@ private:
 	    if (!m_libVertexp) m_libVertexp = new LibraryVertex(&m_graph);
 	    new V3GraphEdge(&m_graph, m_libVertexp, vertex(nodep), 1, false);
 	}
+	nodep->iterateChildren(*this);
+	nodep->checkTree();
+	m_modp = NULL;
+    }
+
+    virtual void visit(AstVhdlEntity* nodep, AstNUser*) {
+	// Module: Pick up modnames, so we can resolve cells later
+	AstVhdlArchitecture* m_vhdlarchip;
+	AstNode* stmtp;
+	AstVhdlArchitecture* testp;
+
+	m_modp = nodep;
+	UINFO(2,"Link VHDL Entity: "<<nodep<<endl);
+	bool topMatch = (v3Global.opt.topModule()==nodep->name());
+	if (topMatch) {
+	    m_topVertexp = vertex(nodep);
+	    UINFO(2,"Link --top-module: "<<nodep<<endl);
+	    nodep->inLibrary(false);   // Safer to make sure it doesn't disappear
+	}
+	if (v3Global.opt.topModule()==""
+	    ? nodep->inLibrary()   // Library cells are lower
+	    : !topMatch) {  // Any non-specified module is lower
+	    // Put under a fake vertex so that the graph ranking won't indicate
+	    // this is a top level module
+	    if (!m_libVertexp) m_libVertexp = new LibraryVertex(&m_graph);
+	    new V3GraphEdge(&m_graph, m_libVertexp, vertex(nodep), 1, false);
+	}
+
+	m_vhdlarchip = v3Global.rootp()->vhdlarchip();
+#if 0
+	testp = m_vhdlarchip->castVhdlArchitecture();
+	do {
+		cout << "*****" << testp->name() << testp->belongsToEntity(nodep) << endl;
+		testp->replaceWith(NULL);
+	} while (testp = testp->nextp()->castVhdlArchitecture());
+#endif
+	UINFO(2,"Moving code from " << m_vhdlarchip->name() << " to " << nodep->name() << endl);
+
+	stmtp = m_vhdlarchip->stmtp();
+	nodep->addStmtp (stmtp);
+	m_vhdlarchip->unlinkFrBack();
+
 	nodep->iterateChildren(*this);
 	nodep->checkTree();
 	m_modp = NULL;
@@ -288,7 +331,7 @@ private:
 		m_mods.insert(nodep->name(), nodep);
 	    }
 	}
-	//if (debug()>=9) m_mods.dump(cout, "-syms: ");
+	if (debug()>=9) m_mods.dump(cout, "-syms: ");
     }
 
 public:

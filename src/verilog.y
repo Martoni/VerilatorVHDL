@@ -1,10 +1,10 @@
 // -*- C++ -*-
-//*************************************************************************
+// *************************************************************************
 // DESCRIPTION: Verilator: Bison grammer file
 //
 // Code available from: http://www.veripool.org/verilator
 //
-//*************************************************************************
+// *************************************************************************
 //
 // Copyright 2003-2012 by Wilson Snyder.  This program is free software; you can
 // redistribute it and/or modify it under the terms of either the GNU
@@ -16,15 +16,18 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-//*************************************************************************
+// *************************************************************************
 // Original code here by Paul Wasson and Duane Galbi
-//*************************************************************************
+// Original VHDL grammar by Thomas Dettmers, modified and integrated by
+// Sebastien Van Cauwenberghe 
+// *************************************************************************
 
 %{
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
 #include <cstring>
+#include <list>
 
 #include "V3Ast.h"
 #include "V3Global.h"
@@ -61,8 +64,10 @@ public:
     string	m_instModule;	// Name of module referenced for instantiations
     AstPin*	m_instParamp;	// Parameters for instantiations
     AstNodeModule* m_modp;	// Module
+    AstVhdlArchitecture* m_vhdl_architecturep;	// Current VHDL Architecture
     int		m_modTypeImpNum; // Implicit type number, incremented each module
     int		m_uniqueAttr;	// Bitmask of unique/priority keywords
+    list<string*> m_varIdentifiers; // VHDL variable identifiers
 
     // CONSTRUCTORS
     V3ParseGrammar() {
@@ -74,6 +79,7 @@ public:
 	m_instModule = "";
 	m_instParamp = NULL;
 	m_modp = NULL;
+	m_vhdl_architecturep = NULL;
 	m_modTypeImpNum = 0;
 	m_varAttrp = NULL;
 	m_caseAttrp = NULL;
@@ -144,6 +150,7 @@ public:
 	}
     }
     string   deQuote(FileLine* fileline, string text);
+    AstVar* createVHDLVariables (FileLine* fileline, AstNode* m_valuep);
     void checkDpiVer(FileLine* fileline, const string& str) {
 	if (str != "DPI-C" && !v3Global.opt.bboxSys()) {
 	    fileline->v3error("Unsupported DPI type '"<<str<<"': Use 'DPI-C'");
@@ -526,7 +533,7 @@ class AstSenTree;
 // [= and [-> could be repitition operators, but to match [* we don't add them.
 // '( is not a operator, as "' (" is legal
 
-//********************
+// ********************
 // PSL op precedence
 %right	 	yP_MINUSGT  yP_LOGIFF
 %right		yP_ORMINUSGT  yP_OREQGT
@@ -581,10 +588,141 @@ class AstSenTree;
 //  Blank lines for type insertion
 //  Blank lines for type insertion
 
+// **********************************************************************
+// VHDL Tokens
+
+%token<fl> vhdl_ACCESS
+%token<fl> vhdl_AFTER
+%token<fl> vhdl_ALIAS
+%token<fl> vhdl_ALL
+%token<fl> vhdl_AND
+%token<fl> vhdl_ARCHITECTURE
+%token<fl> vhdl_ARRAY
+%token<fl> vhdl_ASSERT
+%token<fl> vhdl_ATTRIBUTE
+%token<fl> vhdl_BEGIN
+%token<fl> vhdl_BLOCK
+%token<fl> vhdl_BODY
+%token<fl> vhdl_BUFFER
+%token<fl> vhdl_BUS
+%token<fl> vhdl_CASE
+%token<fl> vhdl_COMPONENT
+%token<fl> vhdl_CONFIGURATION
+%token<fl> vhdl_CONSTANT
+%token<fl> vhdl_DISCONNECT
+%token<fl> vhdl_DOWNTO
+%token<fl> vhdl_ELSE
+%token<fl> vhdl_ELSIF
+%token<fl> vhdl_END
+%token<fl> vhdl_ENTITY
+%token<fl> vhdl_EXIT
+%token<fl> vhdl_FILE
+%token<fl> vhdl_FOR
+%token<fl> vhdl_FUNCTION
+%token<fl> vhdl_GENERATE
+%token<fl> vhdl_GENERIC
+%token<fl> vhdl_GUARDED
+%token<fl> vhdl_IF
+%token<fl> vhdl_IN
+%token<fl> vhdl_INOUT
+%token<fl> vhdl_IS
+%token<fl> vhdl_LABEL
+%token<fl> vhdl_LIBRARY
+%token<fl> vhdl_LINKAGE
+%token<fl> vhdl_LOOP
+%token<fl> vhdl_MAP
+%token<fl> vhdl_NAND
+%token<fl> vhdl_NEW
+%token<fl> vhdl_NEXT
+%token<fl> vhdl_NOR
+%token<fl> vhdl_NULL
+%token<fl> vhdl_OF
+%token<fl> vhdl_ON
+%token<fl> vhdl_OPEN
+%token<fl> vhdl_OR
+%token<fl> vhdl_OTHERS
+%token<fl> vhdl_OUT
+%token<fl> vhdl_PACKAGE
+%token<fl> vhdl_PORT
+%token<fl> vhdl_PROCEDURE
+%token<fl> vhdl_PROCESS
+%token<fl> vhdl_RANGE
+%token<fl> vhdl_RECORD
+%token<fl> vhdl_REGISTER
+%token<fl> vhdl_REPORT
+%token<fl> vhdl_RETURN
+%token<fl> vhdl_SELECT
+%token<fl> vhdl_SEVERITY
+%token<fl> vhdl_SIGNAL
+%token<fl> vhdl_SUBTYPE
+%token<fl> vhdl_THEN
+%token<fl> vhdl_TO
+%token<fl> vhdl_TRANSPORT
+%token<fl> vhdl_TYPE
+%token<fl> vhdl_UNITS
+%token<fl> vhdl_UNTIL
+%token<fl> vhdl_USE
+%token<fl> vhdl_VARIABLE
+%token<fl> vhdl_WAIT
+%token<fl> vhdl_WHEN
+%token<fl> vhdl_WHILE
+%token<fl> vhdl_WITH
+%token<fl> vhdl_XOR
+
+%token<fl> vhdl_EQSYM
+%token<fl> vhdl_NESYM
+%token<fl> vhdl_LTSYM
+%token<fl> vhdl_LESYM
+%token<fl> vhdl_GTSYM
+%token<fl> vhdl_GESYM
+%token<fl> vhdl_PLUS
+%token<fl> vhdl_MINUS
+%token<fl> vhdl_AMPERSAND
+%token<fl> vhdl_STAR
+%token<fl> vhdl_SLASH
+%token<fl> vhdl_MOD
+%token<fl> vhdl_REM
+%token<fl> vhdl_DOUBLESTAR
+%token<fl> vhdl_ABS
+%token<fl> vhdl_NOT
+
+// VHDL Operators precedence
+%nonassoc vhdl_EQSYM vhdl_NESYM vhdl_LTSYM vhdl_LESYM vhdl_GTSYM vhdl_GESYM
+%left vhdl_PLUS vhdl_MINUS vhdl_AMPERSAND
+%left MED_PRECEDENCE
+%left vhdl_STAR vhdl_SLASH vhdl_MOD vhdl_REM
+%nonassoc vhdl_DOUBLESTAR vhdl_ABS vhdl_NOT MAX_PRECEDENCE
+
+%token<fl> vhdl_APOSTROPHE
+%token<fl> vhdl_LEFTPAREN
+%token<fl> vhdl_RIGHTPAREN
+%token<fl> vhdl_COMMA
+%token<fl> vhdl_VARASGN
+%token<fl> vhdl_COLON
+%token<fl> vhdl_SEMICOLON
+
+%token<fl> vhdl_ARROW
+%token<fl> vhdl_BOX
+%token<fl> vhdl_BAR
+%token<fl> vhdl_DOT
+
+%token<strp> vhdl_IDENTIFIER
+%token<nump> vhdl_ABSTRACTLIT
+%token<nump> vhdl_CHARACTERLIT
+
+%token<strp> vhdl_STRINGLIT
+%token<nump> vhdl_BITSTRINGLIT
+
+%token<fl> vhdl_BIT
+%token<fl> vhdl_SIGNED_VECT
+%token<fl> vhdl_UNSIGNED_VECT
+
+%token<fl> vhdl_INTEGER
+
 %start source_text
 
 %%
-//**********************************************************************
+// **********************************************************************
 // Feedback to the Lexer
 // Note we read a parenthesis ahead, so this may not change the lexer at the right point.
 
@@ -598,7 +736,7 @@ statePop:			// Return to previous lexing state
 		/* empty */			 	{ PARSEP->statePop(); }
 	;
 
-//**********************************************************************
+// **********************************************************************
 // Files
 
 source_text:			// ==IEEE: source_text
@@ -608,11 +746,13 @@ source_text:			// ==IEEE: source_text
 	;
 
 descriptionList:		// IEEE: part of source_text
-		description				{ }
-	|	descriptionList description		{ }
+		verilog_description				{ }
+	|	descriptionList verilog_description		{ }
+	|	vhdl_description				{ }
+	|	descriptionList vhdl_description		{ }
 	;
 
-description:			// ==IEEE: description
+verilog_description:			// ==IEEE: description
 		module_declaration			{ }
 	//UNSUP	interface_declaration			{ }
 	|	program_declaration			{ }
@@ -630,7 +770,7 @@ timeunits_declaration<nodep>:	// ==IEEE: timeunits_declaration
 	| 	yTIMEPRECISION  yaTIMENUM ';'		{ $$ = NULL; }
 	;
 
-//**********************************************************************
+// **********************************************************************
 // Packages
 
 package_declaration:		// ==IEEE: package_declaration
@@ -704,7 +844,7 @@ package_import_itemObj<strp>:	// IEEE: part of package_import_item
 	|	'*'					{ $<fl>$=$<fl>1; static string star="*"; $$=&star; }
 	;
 
-//**********************************************************************
+// **********************************************************************
 // Module headers
 
 module_declaration:		// ==IEEE: module_declaration
@@ -884,7 +1024,7 @@ portSig<nodep>:
 //**********************************************************************
 // Interface headers
 
-//**********************************************************************
+// **********************************************************************
 // Program headers
 
 program_declaration:		// IEEE: program_declaration + program_nonansi_header + program_ansi_header:
@@ -940,7 +1080,7 @@ program_generate_item<nodep>:		// ==IEEE: program_generate_item
 	|	generate_region				{ $$ = $1; }
 	;
 
-//************************************************
+// ************************************************
 // Variable Declarations
 
 genvar_declaration<nodep>:	// ==IEEE: genvar_declaration
@@ -1112,7 +1252,7 @@ signing<signstate>:		// ==IEEE: signing
 	|	yUNSIGNED				{ $<fl>$ = $<fl>1; $$ = signedst_UNSIGNED; }
 	;
 
-//************************************************
+// ************************************************
 // Data Types
 
 casting_type<dtypep>:		// IEEE: casting_type
@@ -1244,7 +1384,7 @@ variable_dimension<rangep>:	// ==IEEE: variable_dimension
 	//			// '[' '$' ':' expr ']' -- anyrange:expr:$
 	;
 
-//************************************************
+// ************************************************
 // enum
 
 // IEEE: part of data_type
@@ -1290,7 +1430,7 @@ intnumAsConst<nodep>:
 		yaINTNUM				{ $$ = new AstConst($<fl>1,*$1); }
 	;
 
-//************************************************
+// ************************************************
 // Typedef
 
 data_declaration<nodep>:	// ==IEEE: data_declaration
@@ -1347,7 +1487,7 @@ type_declaration<nodep>:	// ==IEEE: type_declaration
 	//UNSUP	yTYPEDEF yCLASS idAny ';'		{ $$ = NULL; $$ = new AstTypedefFwd($<fl>1, *$3); SYMP->reinsert($$); }
 	;
 
-//************************************************
+// ************************************************
 // Module Items
 
 module_itemListE<nodep>:	// IEEE: Part of module_declaration
@@ -1445,7 +1585,7 @@ module_or_generate_item_declaration<nodep>:	// ==IEEE: module_or_generate_item_d
 	//UNSUP	yDEFAULT yCLOCKING idAny/*new-clocking_identifier*/ ';'	{ $$ = $1; }
 	;
 
-//************************************************
+// ************************************************
 // Generates
 
 generate_block_or_null<nodep>:	// IEEE: generate_block_or_null
@@ -1542,7 +1682,7 @@ case_generate_item<nodep>:	// ==IEEE: case_generate_item
 	|	yDEFAULT generate_block_or_null			{ $$ = new AstCaseItem($1,NULL,$2); }
 	;
 
-//************************************************
+// ************************************************
 // Assignments and register declarations
 
 assignList<nodep>:
@@ -1673,7 +1813,7 @@ delayrange<dtypep>:
 	//UNSUP: ySCALARED/yVECTORED ignored
 	;
 
-//************************************************
+// ************************************************
 // Parameters
 
 param_assignment<varp>:		// ==IEEE: param_assignment
@@ -1698,7 +1838,7 @@ defparam_assignment<nodep>:	// ==IEEE: defparam_assignment
 	//UNSUP	More general dotted identifiers
 	;
 
-//************************************************
+// ************************************************
 // Instances
 // We don't know identifier types, so this matches all module,udp,etc instantiation
 //   module_id      [#(params)]   name  (pins) [, name ...] ;	// module_instantiation
@@ -1764,7 +1904,7 @@ cellpinItemE<pinp>:		// IEEE: named_port_connection + named_parameter_assignment
 	//UNSUP	expr ':' expr ':' expr			{ }
 	;
 
-//************************************************
+// ************************************************
 // EventControl lists
 
 attr_event_control<sentreep>:	// ==IEEE: event_control
@@ -1827,7 +1967,7 @@ senitemEdge<senitemp>:		// IEEE: part of event_expression
 	//UNSUP	yIFF...
 	;
 
-//************************************************
+// ************************************************
 // Statements
 
 stmtBlock<nodep>:		// IEEE: statement + seq_block + par_block
@@ -2043,7 +2183,7 @@ finc_or_dec_expression<nodep>:	// ==IEEE: inc_or_dec_expression
 	|	yP_MINUSMINUS varRefBase		{ $$ = new AstAssign($1,$2,new AstSub    ($1,$2->cloneTree(true),new AstConst($1,V3Number($1,"'b1")))); }
 	;
 
-//************************************************
+// ************************************************
 // Case/If
 
 unique_priorityE<uniqstate>:	// IEEE: unique_priority + empty
@@ -2109,7 +2249,7 @@ for_step<nodep>:		// IEEE: for_step
 	//UNSUP: List of steps
 	;
 
-//************************************************
+// ************************************************
 // Functions/tasks
 
 taskRef<ftaskrefp>:		// IEEE: part of tf_call
@@ -2425,7 +2565,7 @@ dpi_tf_import_propertyE<iprop>:	// IEEE: [ dpi_function_import_property + dpi_ta
 	|	yPURE					{ $$ = iprop_PURE; }
 	;
 
-//************************************************
+// ************************************************
 // Expressions
 //
 // ~l~ means this is the (l)eft hand side of any operator
@@ -2686,7 +2826,7 @@ stream_expression<nodep>:	// ==IEEE: stream_expression
 	//UNSUP	expr yWITH__BRA '[' expr yP_MINUSCOLON expr ']'	{ UNSUP }
 	;
 
-//************************************************
+// ************************************************
 // Gate declarations
 
 gateDecl<nodep>:
@@ -2865,7 +3005,7 @@ strengthSpecE:			// IEEE: drive_strength + pullup_strength + pulldown_strength +
 	//UNSUP	strengthSpec				{ }
 	;
 
-//************************************************
+// ************************************************
 // Tables
 
 table<nodep>:		// IEEE: combinational_body + sequential_body
@@ -2882,7 +3022,7 @@ tableEntry<nodep>:	// IEEE: combinational_entry + sequential_entry
 	|	error					{ $$ = NULL; }
 	;
 
-//************************************************
+// ************************************************
 // Specify
 
 specify_block<nodep>:		// ==IEEE: specify_block
@@ -2915,7 +3055,7 @@ junkToSemi:
 	|	error {}
 	;
 
-//************************************************
+// ************************************************
 // IDs
 
 id<strp>:
@@ -3022,7 +3162,7 @@ endLabelE<strp>:
 	//UNSUP	':' yNEW__ETC				{ $$ = $2; $<fl>$=$<fl>2; }
 	;
 
-//************************************************
+// ************************************************
 // Clocking
 
 clocking_declaration<nodep>:		// IEEE: clocking_declaration  (INCOMPLETE)
@@ -3031,7 +3171,7 @@ clocking_declaration<nodep>:		// IEEE: clocking_declaration  (INCOMPLETE)
 	//UNSUP: Vastly simplified grammar
 	;
 
-//************************************************
+// ************************************************
 // Asserts
 
 labeledStmt<nodep>:
@@ -3065,13 +3205,13 @@ immediate_assert_statement<nodep>:	// ==IEEE: immediate_assert_statement
 	|	yASSERT '(' expr ')' stmtBlock yELSE stmtBlock		{ $$ = new AstVAssert($1,$3,$5,$7);   }
 	;
 
-//************************************************
+// ************************************************
 // Covergroup
 
-//**********************************************************************
+// **********************************************************************
 // Randsequence
 
-//**********************************************************************
+// **********************************************************************
 // Class
 
 //=========
@@ -3106,7 +3246,7 @@ package_scopeIdFollows<packagep>:	// IEEE: package_scope
 	/*cont*/	yP_COLONCOLON	{ $$ = $<scp>1->castPackage(); }
 	;
 
-//************************************************
+// ************************************************
 // PSL Statements
 
 pslStmt<nodep>:
@@ -3131,7 +3271,7 @@ pslDecl<nodep>:
 	|	yDEFAULT yPSL_CLOCK '=' '(' senitemEdge ')' ';'	{ $$ = new AstPslDefClock($3, $5); }
 	;
 
-//************************************************
+// ************************************************
 // PSL Properties, Sequences and SEREs
 // Don't use '{' or '}'; in PSL they're yPSL_BRA and yPSL_KET to avoid expr concatenates
 
@@ -3156,7 +3296,7 @@ pslExpr<nodep>:
 	|	yTRUE					{ $$ = new AstPslBool($1, new AstConst($1, AstConst::LogicTrue())); }
 	;
 
-//**********************************************************************
+// **********************************************************************
 // VLT Files
 
 vltItem:
@@ -3175,7 +3315,1468 @@ vltOffFront<errcodeen>:
 			  if ($$ == V3ErrorCode::EC_ERROR) { $1->v3error("Unknown Error Code: "<<*$3<<endl);  } }
 	;
 
-//**********************************************************************
+// **********************************************************************
+// END OF VERILOG GRAMMAR
+
+// **********************************************************************
+// VHDL GRAMMAR
+
+designator<nodep>:
+		vhdl_IDENTIFIER
+		{ $$ = new AstText ($<fl>1, *$1); }
+	|	vhdl_STRINGLIT
+		{ $$ = new AstText ($<fl>1, *$1); }
+	;
+
+literal<nodep>:
+		vhdl_ABSTRACTLIT
+		{ $$ = new AstConst ($<fl>1, *$1); }
+	|	vhdl_CHARACTERLIT
+		{ $$ = new AstConst ($<fl>1, *$1); }
+	|	vhdl_BITSTRINGLIT
+		{ $$ = new AstConst ($<fl>1, *$1); }
+	|	vhdl_NULL
+		{ $$ = NULL; }
+	;
+
+enumeration_literal:
+		vhdl_CHARACTERLIT
+	|	vhdl_IDENTIFIER
+	;
+
+idf_list:
+		vhdl_IDENTIFIER
+        { GRAMMARP->m_varIdentifiers.push_back ($1); }
+	|	idf_list vhdl_COMMA vhdl_IDENTIFIER
+        { GRAMMARP->m_varIdentifiers.push_back ($3); }
+	;
+
+generic_idf_list<nodep>:
+		vhdl_IDENTIFIER
+		{ $$ = VARDONEA($<fl>1, *$1, NULL, NULL); }
+	|	generic_idf_list vhdl_COMMA vhdl_IDENTIFIER
+		{ $$ = $1->addNext(VARDONEA($<fl>3, *$3, NULL, NULL)); PINNUMINC(); }
+	;
+
+port_idf_list<nodep>:
+		vhdl_IDENTIFIER
+		{ $$ = new AstPort($<fl>1, PINNUMINC(), *$1); }
+	|	port_idf_list vhdl_COMMA vhdl_IDENTIFIER
+		{ $$ = $1->addNext(new AstPort($<fl>3, PINNUMINC(), *$3)); }
+	;
+
+/*------------------------------------------
+--  Design Unit
+--------------------------------------------*/
+
+vhdl_description:
+		context_list lib_unit
+		;
+
+context_list:
+	|	context_list context_item
+	;
+
+lib_unit:
+		entity_decl
+	|	config_decl
+	|	package_decl
+	|	arch_body
+	|	package_body
+	;
+
+context_item:
+		lib_clause
+	|	use_clause
+	;
+
+lib_clause:
+		vhdl_LIBRARY idf_list vhdl_SEMICOLON
+		{ GRAMMARP->m_varIdentifiers.clear(); }
+	;
+
+use_clause:
+		vhdl_USE sel_list vhdl_SEMICOLON
+	;
+
+sel_list:
+		sel_name
+	|	sel_list vhdl_COMMA sel_name
+	;
+
+/*------------------------------------------
+--  Library Units
+--------------------------------------------*/
+
+entity_decl<vhdl_entityp>:
+		entity_start entity_decl_1 entity_decl_2 entity_decl_3 entity_decl_4 vhdl_END entity_decl_5 vhdl_SEMICOLON
+		{ if ($2) $1->addStmtp ($2);
+		  if ($3) $1->addStmtp ($3);
+		  if ($4) $1->addStmtp ($4);
+		  if ($5) $1->addStmtp ($5);
+		  SYMP->popScope ($1); }
+	;
+
+entity_start<modulep>:
+		vhdl_ENTITY vhdl_IDENTIFIER vhdl_IS
+		{ $$ = new AstVhdlEntity($1, *$2); $$->inLibrary(PARSEP->inLibrary()||PARSEP->inCellDefine());
+	 	  $$->modTrace(v3Global.opt.trace());
+		  GRAMMARP->m_modp = $$; GRAMMARP->m_modTypeImpNum = 0;
+		  PARSEP->rootp()->addModulep($$);
+		  SYMP->pushNew($$); }
+	;
+
+entity_decl_1<nodep>:
+        { $$ = NULL; }
+	|	vhdl_GENERIC { VARRESET_LIST(GPARAM); } generic_interf_list vhdl_SEMICOLON
+	    { $$ = $3; VARRESET_LIST(UNKNOWN); }
+	;
+
+entity_decl_2<nodep>:
+		{ $$ = NULL; }
+	|	vhdl_PORT { VARRESET_LIST(PORT); } interf_list vhdl_SEMICOLON
+		{ $$ = $3; VARRESET_LIST(UNKNOWN); }
+	;
+
+entity_decl_3<nodep>:
+        { $$ = NULL; }
+	|	entity_decl_3 entity_decltve_item
+	    { $$ = $1->addNext ($2); }
+	;
+
+entity_decl_4<nodep>:
+        { $$ = NULL; }
+	|	vhdl_BEGIN concurrent_stats
+	    { $$ = $2; }
+	;
+
+entity_decl_5:
+	|	vhdl_IDENTIFIER
+	|	vhdl_ENTITY
+	|	vhdl_ENTITY vhdl_IDENTIFIER
+	;
+
+arch_body<modulep>:
+		arch_start arch_body_declarations vhdl_BEGIN concurrent_stats vhdl_END arch_body_2 vhdl_SEMICOLON
+		{ if ($2) $1->addStmtp($2);
+		  if ($4) $1->addStmtp($4);
+		  SYMP->popScope ($1); }
+	;
+
+arch_start<vhdlarchp>:
+		vhdl_ARCHITECTURE vhdl_IDENTIFIER vhdl_OF vhdl_IDENTIFIER vhdl_IS
+		{ $$ = new AstVhdlArchitecture($1, *$2, *$4);
+		  GRAMMARP->m_vhdl_architecturep = $$;
+		  PARSEP->rootp()->addVhdlArchitecturep($$);
+		  SYMP->pushNew($$); }
+	;
+
+arch_body_declarations<nodep>:
+	    { $$ = NULL; }
+	|   arch_body_1
+	    { $$ = $1; }
+	;
+
+arch_body_1<nodep>:
+		block_decltve_item
+		{ $$ = $1; }
+	|	arch_body_1 block_decltve_item
+		{ $$ = $1->addNextNull($2); }
+	;
+
+arch_body_2:
+	|	vhdl_ARCHITECTURE
+	| 	vhdl_ARCHITECTURE vhdl_IDENTIFIER
+	|	vhdl_IDENTIFIER
+	;
+
+
+config_decl:
+		config_start config_decl_1 block_config vhdl_END config_decl_2 vhdl_SEMICOLON
+ /* ;config_start : vhdl_CONFIGURATION vhdl_IDENTIFIER vhdl_OF mark vhdl_IS
+    replaced: */
+	;
+
+config_start:
+		vhdl_CONFIGURATION vhdl_IDENTIFIER vhdl_OF vhdl_IDENTIFIER vhdl_IS
+	;
+
+config_decl_1:
+	|	config_decl_1 config_decltve_item
+	;
+
+config_decl_2:
+	|	vhdl_IDENTIFIER
+	;
+
+package_decl<nodep>:
+		vhdl_PACKAGE vhdl_IDENTIFIER vhdl_IS package_decl_1 vhdl_END package_decl_2 vhdl_SEMICOLON
+		{ $$ = new AstPackage ($1, *$2); $$->addNextNull ($4); }
+	;
+
+package_decl_1<nodep>:
+		{ $$ = NULL; }
+	|	package_decl_1 package_decltve_item
+		{ $$ = $1->addNext ($2); }
+	;
+
+package_decl_2:
+	|	vhdl_PACKAGE
+	|	vhdl_IDENTIFIER
+	|	vhdl_PACKAGE vhdl_IDENTIFIER
+	;
+
+package_body:
+		vhdl_PACKAGE vhdl_BODY vhdl_IDENTIFIER vhdl_IS package_body_1 vhdl_END package_body_2 vhdl_SEMICOLON
+	;
+
+package_body_1:
+	|	package_body_1 package_body_decltve_item
+	;
+
+package_body_2:
+	|	vhdl_IDENTIFIER
+	|	vhdl_PACKAGE vhdl_BODY
+	|	vhdl_PACKAGE vhdl_BODY vhdl_IDENTIFIER
+	;
+
+/*------------------------------------------
+--  Declarative Item
+--------------------------------------------*/
+common_decltve_item<nodep>:
+		type_decl
+		{ $$ = NULL; }
+	|	subtype_decl
+		{ $$ = NULL; }
+	|	constant_decl
+		{ $$ = $1; }
+	|	alias_decl
+		{ $$ = NULL; }
+	|	subprog_decl
+		{ $$ = NULL; }
+	|	use_clause
+		{ $$ = NULL; }
+	;
+
+entity_decltve_item<nodep>:
+		common_decltve_item
+		{ $$ = $1; }
+	|	subprog_body
+		{ $$ = NULL; }
+	|	attribute_decl
+		{ $$ = NULL; }
+	|	attribute_spec
+		{ $$ = NULL; }
+	|	signal_decl
+		{ $$ = NULL; }
+	;
+
+block_decltve_item<nodep>:
+		common_decltve_item
+		{ $$ = $1; }
+/*	|	subprog_body
+	|	comp_decl
+	|	attribute_decl
+	|	attribute_spec
+	|	config_spec */
+	|	signal_decl
+		{ $$ = $1; }
+	;
+
+package_decltve_item<nodep>:
+		common_decltve_item
+		{ $$ = $1; }
+	|	comp_decl
+		{ $$ = NULL; }
+	|	attribute_decl
+		{ $$ = NULL; }
+	|	attribute_spec
+		{ $$ = NULL; }
+	|	signal_decl
+		{ $$ = NULL; }
+	;
+
+package_body_decltve_item<nodep>:
+		common_decltve_item
+		{ $$ = $1; }
+	|	subprog_body
+		{ $$ = NULL; }
+	;
+
+subprog_decltve_item<nodep>:
+		common_decltve_item
+		{ $$ = $1; }
+	|	subprog_body
+		{ $$ = NULL; }
+	|	attribute_decl
+		{ $$ = NULL; }
+	|	attribute_spec
+		{ $$ = NULL; }
+	|	variable_decl
+		{ $$ = NULL; }
+	;
+
+procs_decltve_item<nodep>:
+		common_decltve_item
+		{ $$ = $1; }
+	|	subprog_body
+		{ $$ = NULL; }
+	|	attribute_decl
+		{ $$ = NULL; }
+	|	attribute_spec
+		{ $$ = NULL; }
+	|	variable_decl
+		{ $$ = $1; }
+	;
+
+config_decltve_item<nodep>:
+		attribute_spec
+		{ $$ = NULL; }
+	|	use_clause
+		{ $$ = NULL; }
+	;
+
+/*------------------------------------------
+--  Subprograms
+--------------------------------------------*/
+
+subprog_decl<nodep>:
+		subprog_spec vhdl_SEMICOLON
+		{ $$ = $1; }
+	;
+
+subprog_spec<ftaskp>:
+		vhdl_PROCEDURE vhdl_IDENTIFIER subprog_spec_1
+		{ $$ = new AstTask ($<fl>1, *$<strp>1, NULL);
+		  SYMP->pushNewUnder($$, NULL);
+		  $$->addStmtsp($3);
+		  $$->prototype(true);
+		  SYMP->popScope($$);
+		}
+	|	vhdl_FUNCTION vhdl_IDENTIFIER subprog_spec_2 vhdl_RETURN subtype_indic
+		{ $$ = new AstFunc ($1, *$<strp>1, NULL, $5);
+		  SYMP->pushNewUnder($$, NULL);
+		  $$->addStmtsp($3);
+		  $$->prototype(true);
+		  SYMP->popScope($$);
+		}
+	;
+
+subprog_spec_1<nodep>:
+		{ $$ = NULL; }
+	|	interf_list
+		{ $$ = $1; }
+	;
+
+subprog_spec_2<nodep>:
+		{ $$ = NULL; }
+	|	interf_list
+		{ $$ = $1; }
+	;
+
+subprog_body<ftaskp>:
+		subprog_spec vhdl_IS subprog_body_1 vhdl_BEGIN seq_stats vhdl_END subprog_body_2 vhdl_SEMICOLON
+	;
+
+subprog_body_1<nodep>:
+		{ $$ = NULL; }
+	|	subprog_body_1 subprog_decltve_item
+		{ $$ = $1->addNext($2); }
+	;
+
+subprog_body_2:
+	|	designator
+	;
+
+/*--------------------------------------------------
+--  Interface Lists and Associaton Lists
+----------------------------------------------------*/
+
+interf_list<nodep>:
+		vhdl_LEFTPAREN interf_item vhdl_RIGHTPAREN
+		{ $$ = $2; }
+	;
+
+interf_item<nodep>:
+		interf_element
+		{ $$ = $1; }
+	| 	interf_item vhdl_SEMICOLON interf_element
+		{ $$ = $1->addNextNull ($3); }
+	;
+
+interf_element<nodep>:
+		interf_element_1 port_idf_list vhdl_COLON interf_element_2 subtype_indic
+		{ VARDTYPE($5); }
+		interf_element_3 interf_element_4
+		{$$ = $2; $$->addNextNull(VARDONEP($$,NULL,NULL)); SYMP->reinsert ($$); }
+	;
+
+generic_interf_list<nodep>:
+		vhdl_LEFTPAREN generic_interf_item vhdl_RIGHTPAREN
+		{ $$ = $2; }
+	;
+
+generic_interf_item<nodep>:
+		generic_interf_element
+		{ $$ = $1; }
+	| 	generic_interf_item vhdl_SEMICOLON generic_interf_element
+		{ $$ = $1->addNextNull ($3); }
+	;
+
+generic_interf_element<nodep>:
+		interf_element_1 generic_idf_list vhdl_COLON subtype_indic
+		{ VARDTYPE($4); }
+		interf_element_3 interf_element_4
+		{ $$ = $2;
+		  if ($7) {
+		    $$->castVar()->valuep($7); }
+		  else { // If no default value, use 0
+		    $$->castVar()->valuep(new AstConst($<fl>2, 0)); }
+		  SYMP->reinsert ($$); }
+	;
+
+
+interf_element_1:
+	|	object_class
+	;
+
+interf_element_2:
+	|	mode
+	;
+
+mode:
+		vhdl_IN	
+		{ VARIO(INPUT); }
+	|	vhdl_OUT
+		{ VARIO(OUTPUT); } 
+	|	vhdl_INOUT
+		{ VARIO(INOUT); }
+	|	vhdl_BUFFER
+		{ VARIO(INOUT); }
+	|	vhdl_LINKAGE
+	;
+
+interf_element_3:
+	|	vhdl_BUFFER
+	;
+
+interf_element_4<nodep>:
+        { $$ = NULL; }
+	|	vhdl_VARASGN vhdl_expr
+	    { $$ = $2; }
+	;
+
+association_list<pinp>:
+	vhdl_LEFTPAREN association_list_1 vhdl_RIGHTPAREN
+	{ $$ = $2; }
+	;
+
+association_list_1<pinp>:
+		association_element
+		{ $$ = $1->castPin(); }
+	|	association_list_1 vhdl_COMMA association_element
+		{ $$ = $1->addNext ($3)->castPin(); }
+	;
+
+association_element<nodep>:
+		formal_part vhdl_ARROW actual_part
+		{ $$ = new AstPin($<fl>1,PINNUMINC(),$1->castVarRef(),$3); }
+	|	actual_part
+		{ $$ = new AstPin($<fl>1,PINNUMINC(),"",$1); }
+	;
+
+formal_part<nodep>:
+		name
+		{ $$ = $1; }
+	;
+
+actual_part<nodep>:
+		vhdl_expr
+		{ $$ = $1; }
+	|	vhdl_OPEN
+		{ $$ = NULL; }
+	;
+
+gen_association_list<nodep>:
+		vhdl_LEFTPAREN gen_association_list_1 vhdl_RIGHTPAREN
+		{ $$ = $2; }
+	;
+
+gen_association_list_1<nodep>:
+		gen_association_element
+		{ $$ = $1; }
+	|	gen_association_list_1 vhdl_COMMA gen_association_element
+		{ $$ = $1->addNextNull ($3); }
+	;
+
+/* changed ;gen_association_element   : association_element  */
+gen_association_element<nodep>:
+		vhdl_expr
+		{ $$ = $1; }
+	|	discrete_range1
+		{ $$ = $1; }
+	;
+
+/*--------------------------------------------------
+--  Names and Expressions
+----------------------------------------------------*/
+
+mark<nodep>:
+	vhdl_IDENTIFIER
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
+|	sel_name
+	{ $$ = NULL; } //TODO: FIX THIS
+;
+
+vhdl_expr<nodep>:
+	and_relation
+	{ $$ = $1; }
+|	or_relation
+	{ $$ = $1; }
+|	xor_relation
+	{ $$ = $1; }
+|	relation
+	{ $$ = $1; }
+|	relation vhdl_NAND relation
+	{ $$ = new AstNot($2, new AstAnd($2, $1, $3)); }
+|	relation vhdl_NOR relation
+	{ $$ = new AstNot($2, new AstOr($2, $1, $3)); }
+;
+
+and_relation<nodep>:
+	relation vhdl_AND relation
+	{ $$ = new AstAnd ($2, $1, $3); } 
+|	and_relation vhdl_AND relation
+	{ $$ = new AstAnd ($2, $1, $3); }
+;
+
+or_relation<nodep>:
+	relation vhdl_OR relation
+	{ $$ = new AstOr ($2, $1, $3); }
+|	or_relation vhdl_OR relation
+	{ $$ = new AstOr ($2, $1, $3); }
+;
+
+xor_relation<nodep>:
+	relation vhdl_XOR relation
+	{ $$ = new AstXor ($2, $1, $3); }
+|	xor_relation vhdl_XOR relation
+	{ $$ = new AstXor ($2, $1, $3); }
+;
+
+/* ;relation   : unary_operator primary   */
+relation<nodep>:
+	primary
+	{ $$ = $1; }
+|	vhdl_PLUS primary  %prec MED_PRECEDENCE
+	{ $$ = $2; }
+|	vhdl_MINUS primary %prec MED_PRECEDENCE
+	{ $$ = new AstNegate ($1, $2); }
+/*
+|	vhdl_ABS primary */
+|	vhdl_NOT primary
+	{ $$ = new AstNot ($1, $2); }
+|	primary vhdl_DOUBLESTAR primary
+	{ $$ = new AstPow ($2, $1, $3); }
+|	relation vhdl_MOD relation
+	{ $$ = new AstModDiv ($2, $1, $3); }
+|	relation vhdl_REM relation 
+	{ $$ = new AstModDivS ($2, $1, $3); }
+|	relation vhdl_AMPERSAND relation 
+	{ $$ = new AstConcat ($2, $1, $3); }
+|	relation vhdl_STAR relation
+	{ $$ = new AstMul ($2, $1, $3); }
+|	relation vhdl_PLUS relation
+	{ $$ = new AstAdd ($2, $1, $3); }
+|	relation vhdl_MINUS relation 
+	{ $$ = new AstSub ($2, $1, $3); }
+|	relation vhdl_LESYM relation
+	{ $$ = new AstLte ($2, $1, $3); }
+|	relation vhdl_GESYM relation
+	{ $$ = new AstGte ($2, $1, $3); }
+|	relation vhdl_LTSYM relation
+	{ $$ = new AstLt ($2, $1, $3); }
+|	relation vhdl_GTSYM relation
+	{ $$ = new AstGt ($2, $1, $3); }
+|	relation vhdl_EQSYM relation
+	{ $$ = new AstEq ($2, $1, $3); }
+|	relation vhdl_NESYM relation
+	{ $$ = new AstNeq ($2, $1, $3); }
+|	relation vhdl_SLASH relation
+	{ $$ = new AstDiv ($2, $1, $3); }
+/* ;    relation : relation binary_operator primary */
+;
+
+primary<nodep>:
+	name
+	{ $$ = $1; }
+|	literal
+	{ $$ = $1; }
+/*
+|	aggregate
+|	qualified_expr*/
+|	vhdl_LEFTPAREN vhdl_expr vhdl_RIGHTPAREN
+	{ $$ = $2; }
+;
+
+vhdlParseRef<parserefp>:
+	name
+	{ $$ = $1->castParseRef(); }
+	;
+
+name<nodep>:
+	mark
+	{ $$ = $1 }
+|	name2
+	{ $$ = $1; }
+;
+
+name2<nodep>:
+	vhdl_STRINGLIT
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
+|	attribute_name
+	{ $$ = $1; }
+/*
+|	ifts_name */
+;
+
+sel_name<nodep>:
+	name vhdl_DOT suffix
+	{ if ($1 and $3) { $$ = new AstDot ($2, new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, $1), $3); }
+	   else if ($1) { $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, $1); }
+	   else { $$ = NULL; } }
+;
+
+suffix<nodep>:
+	designator
+	{ $$ = $1; }
+|	vhdl_CHARACTERLIT
+	{ $$ = NULL; }
+|	vhdl_ALL
+	{ $$ = NULL; }
+;
+
+/* UNSUP
+ifts_name:
+	mark gen_association_list
+|	name2 gen_association_list
+;
+*/
+
+attribute_name<nodep>:
+	mark vhdl_APOSTROPHE vhdl_IDENTIFIER
+	{ $$ = new AstVhdlQuotedAttribute ($2, $1, *$3); }
+|	name2 vhdl_APOSTROPHE vhdl_IDENTIFIER
+	{ $$ = new AstVhdlQuotedAttribute ($2, $1, *$3); }
+|	mark vhdl_APOSTROPHE vhdl_RANGE
+	{ $$ = new AstVhdlQuotedAttribute ($2, $1, "range"); }
+|	name2 vhdl_APOSTROPHE vhdl_RANGE
+	{ $$ = new AstVhdlQuotedAttribute ($2, $1, "range"); }
+;
+
+/* UNSUP
+aggregate:
+	element_association_list2 vhdl_RIGHTPAREN
+|	vhdl_LEFTPAREN choices vhdl_ARROW vhdl_expr vhdl_RIGHTPAREN
+;
+*/
+
+/* UNSUP
+element_association_list2:
+	vhdl_LEFTPAREN element_association vhdl_COMMA element_association
+|	element_association_list2 vhdl_COMMA element_association
+;
+*/
+
+/* UNSUP
+qualified_expr:
+	mark vhdl_APOSTROPHE vhdl_LEFTPAREN vhdl_expr vhdl_RIGHTPAREN
+|	mark vhdl_APOSTROPHE aggregate
+;
+*/
+
+/*--------------------------------------------------
+--  Element Association and Choices
+----------------------------------------------------*/
+/* UNSUP
+element_association:
+	choices vhdl_ARROW vhdl_expr
+|	vhdl_expr
+;
+*/
+
+choices<nodep>:
+	choice 
+	{ $$ = $1; }
+|	choices vhdl_BAR choice
+	{ $$ = $1; $$->addNext ($3); }
+;
+
+choice<nodep>:
+	vhdl_expr
+	{ $$ = $1; }
+|	discrete_range1
+	{ $$ = $1; }
+|	vhdl_OTHERS
+	{ $$ = NULL; }
+;
+
+/*--------------------------------------------------
+--	Type Declarations
+----------------------------------------------------*/
+
+type_decl:
+	vhdl_TYPE vhdl_IDENTIFIER type_decl_1 vhdl_SEMICOLON
+	;
+
+type_decl_1:
+|	vhdl_IS type_definition
+	;
+
+type_definition:
+	enumeration_type_definition
+|	range_constraint
+|	unconstrained_array_definition
+|	constrained_array_definition
+|	record_type_definition
+/* UNSUP
+|	access_type_definition
+|	file_type_definition
+*/
+;
+
+enumeration_type_definition:
+	vhdl_LEFTPAREN enumeration_type_definition_1 vhdl_RIGHTPAREN
+;
+
+enumeration_type_definition_1:
+	enumeration_literal
+|	enumeration_type_definition_1 vhdl_COMMA enumeration_literal
+;
+
+unconstrained_array_definition:
+	vhdl_ARRAY vhdl_LEFTPAREN unconstrained_array_definition_1 vhdl_RIGHTPAREN vhdl_OF subtype_indic
+;
+
+unconstrained_array_definition_1:
+	index_subtype_definition
+|	unconstrained_array_definition_1 vhdl_COMMA index_subtype_definition
+;
+
+index_subtype_definition:
+	mark vhdl_RANGE vhdl_BOX
+;
+
+constrained_array_definition:
+	vhdl_ARRAY index_constraint vhdl_OF subtype_indic
+;
+
+record_type_definition:
+	vhdl_RECORD record_type_definition_1 vhdl_END vhdl_RECORD
+;
+
+record_type_definition_1:
+	element_decl
+|	record_type_definition_1 element_decl
+;
+
+element_decl:
+	idf_list vhdl_COLON subtype_indic vhdl_SEMICOLON
+;
+
+/*--------------------------------------------------
+--  Subtypes and Constraints
+----------------------------------------------------*/
+
+subtype_decl:
+	vhdl_SUBTYPE vhdl_IDENTIFIER vhdl_IS subtype_indic vhdl_SEMICOLON
+;
+
+subtype_indic<dtypep>:
+		internal_type_atomic
+		{ $$ = $1; }
+	|	internal_type_vectored gen_association_list
+		{ $$ = $1; GRAMMARP->addRange($1,$2->castRange(),true); }
+/*	|	mark subtype_indic_1
+	|	subtype_indic1*/
+;
+
+internal_type_atomic<bdtypep>:
+	vhdl_BIT
+	{ $$ = new AstBasicDType($1,AstBasicDTypeKwd::BIT,signedst_NOP); }
+	| vhdl_INTEGER
+	{ $$ = new AstBasicDType($1,AstBasicDTypeKwd::INTEGER,signedst_SIGNED);}
+	;
+
+internal_type_vectored<bdtypep>:
+		vhdl_UNSIGNED_VECT
+		{ $$ = new AstBasicDType($1,AstBasicDTypeKwd::BIT,signedst_UNSIGNED); }
+	|	vhdl_SIGNED_VECT
+		{ $$ = new AstBasicDType($1,AstBasicDTypeKwd::BIT,signedst_SIGNED); }
+	;
+
+subtype_indic_1<nodep>:
+		{ $$ = NULL; }
+/* UNSUP
+	|	gen_association_list
+		{ $$ = $1; }
+*/
+;
+
+subtype_indic1:
+	mark mark range_constraint
+	|	mark range_constraint
+	|	mark mark subtype_indic1_1
+	;
+
+subtype_indic1_1<nodep>:
+		{ $$ = NULL; }
+	|	gen_association_list
+		{ $$ = $1; }
+	;
+
+range_constraint:
+		vhdl_RANGE range_spec
+	;
+
+index_constraint:
+		vhdl_LEFTPAREN index_constraint_1 vhdl_RIGHTPAREN
+	;
+
+index_constraint_1:
+		discrete_range
+	|	index_constraint_1 vhdl_COMMA discrete_range
+	;
+
+discrete_range<nodep>:
+		subtype_indic
+		{ $$ = $1; }
+	|	range_spec
+		{ $$ = $1; }
+	;
+
+discrete_range1<rangep>:
+		subtype_indic1
+		{ $$ = NULL; }
+	|	vhdl_expr direction vhdl_expr
+		{ $$ = new AstRange ($<fl>2, $1, $3); $$->littleEndian($2); }
+	;
+
+range_spec<rangep>:
+		attribute_name
+		{ $$ = $1->castRange(); }
+	|	vhdl_expr direction vhdl_expr
+		{ $$ = new AstRange ($<fl>2, $1, $3); $$->littleEndian($2); }
+	;
+
+direction<cbool>:
+		vhdl_TO
+		{ $<fl>$ = $<fl>1; $$ = true; }
+	|	vhdl_DOWNTO
+		{ $<fl>$ = $<fl>1; $$ = false; }
+	;
+
+/*--------------------------------------------------
+--  Objects, Aliases, Files, Disconnections
+----------------------------------------------------*/
+
+constant_decl<nodep>:
+		vhdl_CONSTANT idf_list vhdl_COLON subtype_indic constant_decl_1 vhdl_SEMICOLON
+		{ VARRESET_NONLIST (LPARAM); VARDTYPE($4);
+		  $$ = GRAMMARP->createVHDLVariables ($1, $5); VARRESET()
+		}
+	;
+
+constant_decl_1<nodep>:
+        { $$ = NULL; }
+	|	vhdl_VARASGN vhdl_expr
+	    { $$ = $2; }
+	;
+
+signal_decl<nodep>:
+		vhdl_SIGNAL idf_list vhdl_COLON subtype_indic signal_decl_1 signal_decl_2 vhdl_SEMICOLON
+		{ VARRESET_NONLIST (VAR); VARDTYPE($4);
+		  $$ = GRAMMARP->createVHDLVariables ($1, $6); VARRESET()
+		}
+	;
+
+signal_decl_1:
+	|	signal_kind
+	;
+
+signal_decl_2<nodep>:
+		{ $$ = NULL; }
+	|	vhdl_VARASGN vhdl_expr
+		{ $$ = $2; }
+	;
+
+variable_decl<varp>:
+		vhdl_VARIABLE idf_list vhdl_COLON subtype_indic variable_decl_1 vhdl_SEMICOLON
+		{ VARRESET_NONLIST (VAR); VARDTYPE($4);
+		  $$ = GRAMMARP->createVHDLVariables ($1, $5); VARRESET()
+		}
+	;
+
+variable_decl_1<nodep>:
+		{ $$ = NULL; }
+	|	vhdl_VARASGN vhdl_expr
+		{ $$ = $2; }
+	;
+
+object_class:
+		vhdl_CONSTANT
+	|	vhdl_SIGNAL
+	|	vhdl_VARIABLE
+	;
+
+signal_kind:
+		vhdl_BUS
+	|	vhdl_REGISTER
+	;
+
+alias_decl:
+		vhdl_ALIAS vhdl_IDENTIFIER vhdl_COLON subtype_indic vhdl_IS name vhdl_SEMICOLON
+	;
+
+/* UNSUP
+signal_list:
+	name signal_list_1
+	| vhdl_OTHERS
+	| vhdl_ALL
+	;
+*/
+
+/* UNSUP
+signal_list_1:
+		name
+	| 	signal_list_1 vhdl_COMMA name;
+	;
+*/
+
+/*--------------------------------------------------
+--  Attribute Declarations and Specifications
+----------------------------------------------------*/
+
+attribute_decl:
+		vhdl_ATTRIBUTE vhdl_IDENTIFIER vhdl_COLON mark vhdl_SEMICOLON
+	;
+
+attribute_spec:
+		vhdl_ATTRIBUTE vhdl_IDENTIFIER vhdl_OF entity_spec vhdl_IS vhdl_expr vhdl_SEMICOLON
+	;
+
+entity_spec:
+		entity_name_list vhdl_COLON entity_class
+	;
+
+entity_name_list:
+		entity_name_list_1
+	|	vhdl_OTHERS
+	|	vhdl_ALL
+	;
+
+entity_name_list_1:
+		designator
+	|	entity_name_list_1 vhdl_COMMA designator
+	;
+
+entity_class:
+		vhdl_ENTITY
+	|	vhdl_ARCHITECTURE
+	|	vhdl_PACKAGE
+	|	vhdl_CONFIGURATION
+	|	vhdl_COMPONENT
+	|	vhdl_LABEL
+	|	vhdl_TYPE
+	|	vhdl_SUBTYPE
+	|	vhdl_PROCEDURE
+	|	vhdl_FUNCTION
+	|	vhdl_SIGNAL
+	|	vhdl_VARIABLE
+	|	vhdl_CONSTANT
+	;
+
+/*--------------------------------------------------
+--  Schemes
+----------------------------------------------------*/
+
+/* UNSUP
+generation_scheme:
+		if_scheme
+	|	for_scheme
+	;
+
+for_scheme:
+		vhdl_FOR vhdl_IDENTIFIER vhdl_IN discrete_range
+	;
+
+if_scheme:
+		vhdl_IF vhdl_expr
+	;
+*/
+
+/*--------------------------------------------------
+--  Concurrent Statements
+----------------------------------------------------*/
+
+concurrent_stats<nodep>:
+		{ $$ = NULL; }
+	|	concurrent_stats_1
+		{ $$ = $1; }
+	;
+
+concurrent_stats_1<nodep>:
+		concurrent_stat
+		{ $$ = $1; }
+	|	concurrent_stats_1 concurrent_stat
+		{ $$ = $1->addNextNull($2); }
+	;
+
+concurrent_stat<nodep>:
+/*		block_stat
+		{ $$ = $1; } */
+		concurrent_assertion_stat
+		{ $$ = $1; }
+/*	|	concurrent_procedure_call
+		{ $$ = $1; } */
+	|	concurrent_signal_assign_stat
+		{ $$ = $1; } // readd OR at the beginning of rule
+	|	comp_inst_stat
+		{ $$ = $1; }
+/*	|	generate_stat
+		{ $$ = $1; } */
+	|	procs_stat
+		{ $$ = $1; }
+	;
+
+/* UNSUP
+block_stat:
+		vhdl_IDENTIFIER vhdl_COLON vhdl_BLOCK block_stat_1 block_stat_2 block_stat_3 block_stat_4 vhdl_BEGIN concurrent_stats vhdl_END vhdl_BLOCK block_stat_5 vhdl_SEMICOLON
+	;
+
+block_stat_1:
+	|	vhdl_LEFTPAREN vhdl_expr vhdl_RIGHTPAREN
+	;
+
+block_stat_2:
+	|	vhdl_GENERIC interf_list vhdl_SEMICOLON block_stat_8
+	;
+
+block_stat_3:
+	|	vhdl_PORT interf_list vhdl_SEMICOLON block_stat_7
+	;
+
+block_stat_4:
+	|	block_stat_4 block_decltve_item
+	;
+
+block_stat_5:
+	|	vhdl_IDENTIFIER
+	;
+
+block_stat_7:
+	|	vhdl_PORT vhdl_MAP association_list vhdl_SEMICOLON
+	;
+
+block_stat_8:
+	|	vhdl_GENERIC vhdl_MAP association_list vhdl_SEMICOLON
+	;
+*/
+
+
+comp_inst_stat<nodep>:
+        // $3 was mark instead of vhdl_IDENTIFIER
+		vhdl_IDENTIFIER vhdl_COLON vhdl_IDENTIFIER comp_inst_stat_1 comp_inst_stat_2 vhdl_SEMICOLON
+		{ $$ = new AstCell ($2, *$1, *$3, $5, $4, NULL); }
+	;
+
+comp_inst_stat_1<pinp>:
+        { $$ = NULL; }
+	|	vhdl_GENERIC vhdl_MAP { VARRESET_LIST(UNKNOWN); } association_list
+	    { $$ = $4; VARRESET_LIST(UNKNOWN); }
+	;
+
+comp_inst_stat_2<pinp>:
+        { $$ = NULL; }
+	|	vhdl_PORT vhdl_MAP { VARRESET_LIST(UNKNOWN); } association_list
+	    { $$ = $4; VARRESET_LIST(UNKNOWN); }
+	;
+
+concurrent_assertion_stat<nodep>:
+		vhdl_IDENTIFIER vhdl_COLON assertion_stat
+		{ $$ = $3; }
+	|	assertion_stat
+		{ $$ = $1; }
+	;
+
+concurrent_procedure_call<nodep>:
+		vhdl_IDENTIFIER vhdl_COLON procedure_call_stat
+		{ $$ = $3; }
+/* UNSUP
+	|	procedure_call_stat
+		{ $$ = $1; }
+*/
+	;
+
+concurrent_signal_assign_stat<nodep>:
+		vhdl_IDENTIFIER vhdl_COLON condal_signal_assign
+		{ $$ = $3; }
+	|	condal_signal_assign
+		{ $$ = $1; }
+	|	vhdl_IDENTIFIER vhdl_COLON sel_signal_assign
+		{ $$ = $3; }
+	|	sel_signal_assign
+		{ $$ = $1; }
+	;
+
+condal_signal_assign<nodep>:
+		target vhdl_LESYM opts condal_wavefrms vhdl_SEMICOLON
+		{ $$ = new AstAssignW ($2, $1, $4); }
+	;
+
+condal_wavefrms<nodep>:
+		vhdl_expr
+		{ $$ = $1; }
+	| 	condal_wavefrms vhdl_WHEN vhdl_expr vhdl_ELSE vhdl_expr
+		{ $$ = new AstVhdlCondalWhen ($2, $1, $3, $5); }
+	;
+
+target<nodep>:
+		name
+		{ $$ = $1; }
+/*
+	|	aggregate */
+	;
+
+opts:
+		opts_1 opts_2
+	;
+
+opts_1:
+	|	vhdl_GUARDED
+	;
+
+opts_2:
+	|	vhdl_TRANSPORT
+	;
+
+sel_signal_assign<nodep>:
+		vhdl_WITH vhdl_expr vhdl_SELECT target vhdl_LESYM opts sel_wavefrms vhdl_SEMICOLON
+		{ $$ = new AstVhdlSelect ($1, $2, $4, $7); }
+	;
+
+sel_wavefrms<nodep>:
+		vhdl_expr vhdl_WHEN choices
+		{ $$ = new AstVhdlChoice ($2, $1, $3); }
+	|	sel_wavefrms vhdl_COMMA vhdl_expr vhdl_WHEN choices
+		{ $$ = $1->addNext(new AstVhdlChoice($2, $3, $5)); }
+	;
+
+/* UNSUP
+generate_stat:
+		vhdl_IDENTIFIER vhdl_COLON generation_scheme vhdl_GENERATE concurrent_stats vhdl_END vhdl_GENERATE generate_stat_1 vhdl_SEMICOLON
+	;
+
+generate_stat_1:
+	|	vhdl_IDENTIFIER
+	;
+*/
+
+procs_stat<nodep>:
+		vhdl_IDENTIFIER vhdl_COLON procs_stat1
+		{ $$ = $3; }
+	|	procs_stat1
+		{ $$ = $1; }
+	;
+
+procs_stat1<nodep>:
+		vhdl_PROCESS procs_stat1_1 procs_stat1_2 vhdl_BEGIN seq_stats vhdl_END vhdl_PROCESS procs_stat1_3 vhdl_SEMICOLON
+		{ AstNode* processp = new AstBegin($4, "", $3); processp->addNextNull($5); $$ = new AstAlways ($1, $2, processp); }
+	;
+
+procs_stat1_3:
+	|	vhdl_IDENTIFIER
+	;
+
+procs_stat1_2<nodep>:
+		{ $$ = NULL; }
+	|	procs_stat1_2  procs_decltve_item
+		{ $$ = $1->addNext ($2); }
+	;
+
+procs_stat1_1<sentreep>:
+	|	vhdl_LEFTPAREN sensitivity_list vhdl_RIGHTPAREN
+		{ $$ = new AstSenTree ($1, $2); }
+	;
+
+sensitivity_list<senitemp>:
+		vhdlParseRef
+		{ $$ = new AstSenItem ($<fl>1, AstEdgeType::ET_ANYEDGE, $1); }
+	|	sensitivity_list vhdl_COMMA vhdlParseRef
+		{ $$ = $1->addNextNull(new AstSenItem ($2, AstEdgeType::ET_ANYEDGE, $3))->castSenItem(); }
+	;
+
+/*--------------------------------------------------
+--  Sequential Statements
+----------------------------------------------------*/
+
+seq_stats<nodep>:
+		{ $$ = NULL; }
+	|	seq_stats seq_stat
+		{ $$ = $1->addNextNull ($2); }
+	;
+
+seq_stat<nodep>:
+		assertion_stat
+		{ $$ = $1; }
+	|	report_stat
+		{ $$ = $1; }
+	|	case_stat
+		{ $$ = $1; }
+	|	if_stat
+		{ $$ = $1; }
+	|	loop_stat
+		{ $$ = $1; }
+	|	null_stat
+		{ $$ = NULL; }
+	|	procedure_call_stat
+		{ $$ = $1; }
+	|	return_stat
+		{ $$ = $1; }
+	|	signal_assign_stat
+		{ $$ = $1; }
+	|	variable_assign_stat
+		{ $$ = $1; }
+	|	next_stat
+		{ $$ = $1; }
+	|	exit_stat
+		{ $$ = $1; }
+	;
+
+assertion_stat<nodep>:
+		vhdl_ASSERT vhdl_expr report_stat vhdl_SEMICOLON
+		{ $$ = new AstIf ($1, new AstNot($1, $2), $3, NULL); }
+	;
+
+report_stat<nodep>:
+/*  vhdl_REPORT vhdl_expr assertion_stat_2 ---TO FIX--- */
+	vhdl_REPORT vhdl_STRINGLIT report_stat_1
+		{ $$ = new AstDisplay ($1, AstDisplayType::DT_INFO, *$2, NULL, NULL);
+		  if ($3 && *$3 == "failure") $$->addNext (new AstFinish($1));
+		}
+	;
+
+report_stat_1<strp>:
+		{ $$ = NULL; }
+/*	|	vhdl_SEVERITY vhdl_expr ---TO FIX--- */
+	|	vhdl_SEVERITY vhdl_IDENTIFIER
+		{ $$ = $2; }
+	;
+
+case_stat<nodep>:
+		vhdl_CASE vhdl_expr vhdl_IS case_stat_1 vhdl_END vhdl_CASE vhdl_SEMICOLON
+		{ $$ = new AstCase ($1, AstCaseType::CT_CASE, $2, $4); }
+	;
+
+case_stat_1<nodep>:
+		case_stat_alternative
+		{ $$ = $1; }
+	|	case_stat_1 case_stat_alternative
+		{ $$ = $1->addNext($2); }
+	;
+
+case_stat_alternative<nodep>:
+		vhdl_WHEN choices vhdl_ARROW seq_stats
+		{ $$ = new AstCaseItem ($1, $2, $4); }
+	;
+
+exit_stat<nodep>:
+		vhdl_EXIT exit_stat_1 exit_stat_2 vhdl_SEMICOLON
+		{ $$ = new AstBreak($1);
+		  if ($3) $$ = new AstIf ($1, $3, $$, NULL);
+		}
+	;
+
+exit_stat_2<nodep>:
+		{ $$ = NULL; }
+	|	vhdl_WHEN vhdl_expr
+		{ $$ = $2; }
+	;
+
+exit_stat_1:
+	|	vhdl_IDENTIFIER
+	;
+
+if_stat<nodep>:
+		vhdl_IF vhdl_expr vhdl_THEN seq_stats if_stat_1 if_stat_2 vhdl_END vhdl_IF vhdl_SEMICOLON
+		{ $$ = new AstIf ($1, $2, $4, $5); $$->addNextNull ($6); }
+	;
+
+if_stat_1<nodep>:
+		{ $$ = NULL; }
+	|	if_stat_1 vhdl_ELSIF vhdl_expr vhdl_THEN seq_stats
+		{ $$ = $1->addNext (new AstIf ($2, $3, $5, NULL)); }
+	;
+
+if_stat_2<nodep>:
+		{ $$ = NULL; }
+	|	vhdl_ELSE seq_stats
+		{ $$ = $2; $<fl>$ = $1; }
+	;
+
+loop_stat<nodep>:
+		loop_stat_1 vhdl_FOR vhdl_IDENTIFIER vhdl_IN discrete_range vhdl_LOOP seq_stats vhdl_END vhdl_LOOP loop_stat_3 vhdl_SEMICOLON
+		{ $$ = new AstVhdlFor ($2, new AstVarRef($<fl>3, *$3, false), $5->castRange(), $7); }
+	| 	loop_stat_1 vhdl_WHILE vhdl_expr vhdl_LOOP seq_stats vhdl_END vhdl_LOOP loop_stat_3 vhdl_SEMICOLON
+		{ $$ = new AstWhile ($2, $3, $5); }
+	;
+
+loop_stat_1:
+	|	vhdl_IDENTIFIER vhdl_COLON
+	;
+
+loop_stat_3:
+	|	vhdl_IDENTIFIER
+	;
+
+next_stat<nodep>:
+		vhdl_NEXT next_stat_1 next_stat_2 vhdl_SEMICOLON
+		{ $$ = new AstContinue ($1);
+		  if ($3) $$ = new AstIf ($1, $3, $$, NULL);
+		}
+	;
+
+next_stat_1:
+	|	vhdl_IDENTIFIER
+	;
+
+next_stat_2<nodep>:
+		{ $$ = NULL; }
+	|	vhdl_WHEN vhdl_expr
+		{ $$ = $2; }
+	;
+
+null_stat: // NULL statement handled at seq_stat
+		vhdl_NULL vhdl_SEMICOLON
+	;
+
+procedure_call_stat<nodep>:
+		name vhdl_SEMICOLON
+		{ $$ = NULL; }
+	;
+
+return_stat<nodep>:
+		vhdl_RETURN return_stat_1 vhdl_SEMICOLON
+		{ $$ = new AstReturn ($1, $2); }
+	;
+
+return_stat_1<nodep>:
+		{ $$ = NULL; }
+	|	vhdl_expr
+		{ $$ = $1; }
+	;
+
+signal_assign_stat<nodep>:
+		target vhdl_LESYM signal_assign_stat_1 vhdl_expr vhdl_SEMICOLON
+		{ $$ = new AstVhdlAssignSig ($2, $1, $4); }
+	;
+
+signal_assign_stat_1:
+	|	vhdl_TRANSPORT
+	;
+
+variable_assign_stat<nodep>:
+		target vhdl_VARASGN vhdl_expr vhdl_SEMICOLON
+		{ $$ = new AstVhdlAssignVar ($2, $1, $3); }
+	;
+
+/*--------------------------------------------------
+--  Components and Configurations
+----------------------------------------------------*/
+
+comp_decl:
+		vhdl_COMPONENT vhdl_IDENTIFIER comp_decl_1 comp_decl_2 vhdl_END vhdl_COMPONENT vhdl_SEMICOLON
+	;
+
+comp_decl_1:
+	|	vhdl_GENERIC interf_list vhdl_SEMICOLON
+	;
+
+comp_decl_2:
+	|	vhdl_PORT interf_list vhdl_SEMICOLON
+	;
+
+block_config:
+		vhdl_FOR block_spec block_config_1 block_config_2 vhdl_END vhdl_FOR vhdl_SEMICOLON
+	;
+
+block_spec:
+		name
+	;
+
+block_config_1:
+	|	block_config_1 use_clause
+	;
+
+block_config_2:
+	|	block_config_2 block_config_3
+	;
+
+block_config_3:
+		config_item
+	;
+
+/* UNSUP
+config_spec:
+		vhdl_FOR comp_spec vhdl_USE binding_indic vhdl_SEMICOLON
+	;
+*/
+
+config_item:
+		block_config
+	|	comp_config
+	;
+
+comp_config:
+		vhdl_FOR comp_spec comp_config_1 comp_config_2 vhdl_END vhdl_FOR vhdl_SEMICOLON
+	;
+
+comp_spec:
+		inst_list vhdl_COLON mark
+	;
+
+comp_config_1:
+	|	vhdl_USE binding_indic vhdl_SEMICOLON
+	;
+
+comp_config_2:
+	|	block_config
+	;
+
+inst_list:
+		idf_list
+	|	vhdl_ALL
+	|	vhdl_OTHERS
+	;
+
+binding_indic:
+		entity_aspect binding_indic_1 binding_indic_2
+	;
+
+entity_aspect:
+		vhdl_ENTITY name
+	|	vhdl_CONFIGURATION mark
+	|	vhdl_OPEN
+	;
+
+binding_indic_1:
+	|	vhdl_GENERIC vhdl_MAP association_list
+	;
+
+binding_indic_2:
+	|	vhdl_PORT vhdl_MAP association_list
+	;
+
 %%
 
 int V3ParseImp::bisonParse() {
@@ -3275,6 +4876,30 @@ AstVar* V3ParseGrammar::createVariable(FileLine* fileline, string name, AstRange
     // Remember the last variable created, so we can attach attributes to it in later parsing
     GRAMMARP->m_varAttrp = nodep;
     return nodep;
+}
+
+AstVar* V3ParseGrammar::createVHDLVariables (FileLine* fileline, AstNode* m_valuep) {
+	AstVar* nodep = NULL;
+	list<string*>::iterator it;
+	int i = 0;
+	for (it = GRAMMARP->m_varIdentifiers.begin(); it != GRAMMARP->m_varIdentifiers.end(); it++)
+	{
+		if (nodep) {
+			nodep = nodep->addNext(VARDONEA(fileline,* *it,NULL,NULL))->castVar();
+			if (m_valuep) {
+			    nodep->valuep (m_valuep);
+			}
+	    }
+		else {
+			nodep = VARDONEA(fileline,* *it,NULL,NULL);
+			if (m_valuep) {
+			    nodep->valuep (m_valuep);
+			}
+		    SYMP->reinsert(nodep);
+		}
+	}
+	GRAMMARP->m_varIdentifiers.clear();
+	return nodep;
 }
 
 string V3ParseGrammar::deQuote(FileLine* fileline, string text) {

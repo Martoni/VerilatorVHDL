@@ -1013,12 +1013,68 @@ struct AstModule : public AstNodeModule {
     virtual string verilogKwd() const { return "module"; }
 };
 
+struct AstVhdlEntity : public AstNodeModule {
+    // A VHDL Entity declaration
+    // Write in the Symbol Table the Entity over it,
+    // So only one architecture per Entity
+public:
+    AstVhdlEntity(FileLine* fl, const string& name)
+	: AstNodeModule (fl,name) { }
+    ASTNODE_NODE_FUNCS(VhdlEntity, VHDLENTITY)
+    virtual string verilogKwd() const { return "vhdl_entity"; }
+};
+
+struct AstVhdlComponent : public AstNodeModule {
+    // A VHDL Component declaration
+    // Write in the Symbol Table the Entity over it,
+    // So only one architecture per Component
+public:
+    AstVhdlComponent(FileLine* fl, const string& name)
+	: AstNodeModule (fl,name) { }
+    ASTNODE_NODE_FUNCS(VhdlComponent, VHDLCOMPONENT)
+    virtual string verilogKwd() const { return "vhdl_component"; }
+};
+
+struct AstVhdlArchitecture : public AstNode {
+    // A VHDL Architecture declaration
+private:
+	string  m_entity_name; // Name of the entity
+	string  m_architecture_name; // Name of the architecture
+public:
+    AstVhdlArchitecture(FileLine* fl, const string& name, const string& entity_name)
+	: AstNode (fl), m_entity_name (entity_name), m_architecture_name (name)
+	 { }
+    ASTNODE_NODE_FUNCS(VhdlArchitecture, VHDLARCHITECTURE)
+    virtual void entity_name(const string& name) { m_entity_name = name; }
+    virtual void architecture_name(const string& name) { m_architecture_name = name; }
+    virtual string name()	const { return "%" + m_entity_name + "_" + m_architecture_name; }
+    virtual string entity_name()	const { return m_entity_name; }
+    virtual string architecture_name()	const { return m_architecture_name; }
+	virtual bool belongsToEntity (AstNode* m_entityp) { return m_entityp->castVhdlEntity()->name() == m_entity_name; }
+    AstNode*	stmtp() 	const { return op1p()->castNode(); }
+    void addStmtp(AstNode* nodep) { addOp1p(nodep); }
+    virtual string verilogKwd() const { return "vhdl_architecture"; }
+};
+
 struct AstNotFoundModule : public AstNodeModule {
     // A missing module declaration
     AstNotFoundModule(FileLine* fl, const string& name)
 	: AstNodeModule (fl,name) {}
     ASTNODE_NODE_FUNCS(NotFoundModule, NOTFOUNDMODULE)
     virtual string verilogKwd() const { return "/*not-found-*/ module"; }
+};
+
+struct AstVhdlQuotedAttribute : public AstNode {
+    // A VHDL Quoted attribute
+private:
+	string m_name;
+public:
+    AstVhdlQuotedAttribute(FileLine* fl, AstNode* nodeattr, const string& name)
+	: AstNode (fl), m_name(name) { setOp1p (nodeattr); }
+    ASTNODE_NODE_FUNCS(VhdlQuotedAttribute, VHDLQUOTEDATTRIBUTE)
+	AstNode* idp() const { return op1p()->castNode(); }
+    virtual string name()	const { return m_name; }
+    virtual string verilogKwd() const { return "vhdl_quotedattribute"; }
 };
 
 struct AstPackage : public AstNodeModule {
@@ -1413,6 +1469,24 @@ struct AstAssign : public AstNodeAssign {
     virtual AstNode* cloneType(AstNode* lhsp, AstNode* rhsp) { return new AstAssign(this->fileline(), lhsp, rhsp); }
 };
 
+struct AstVhdlAssignSig : public AstNodeAssign {
+    AstVhdlAssignSig(FileLine* fileline, AstNode* lhsp, AstNode* rhsp)
+	: AstNodeAssign(fileline, lhsp, rhsp) {
+	if (lhsp) widthSignedFrom(lhsp);
+    }
+    ASTNODE_NODE_FUNCS(VhdlAssignSig, VHDLASSIGNSIG)
+    virtual AstNode* cloneType(AstNode* lhsp, AstNode* rhsp) { return new AstVhdlAssignSig(this->fileline(), lhsp, rhsp); }
+};
+
+struct AstVhdlAssignVar : public AstNodeAssign {
+    AstVhdlAssignVar(FileLine* fileline, AstNode* lhsp, AstNode* rhsp)
+	: AstNodeAssign(fileline, lhsp, rhsp) {
+	if (lhsp) widthSignedFrom(lhsp);
+    }
+    ASTNODE_NODE_FUNCS(VhdlAssignVar, VHDLASSIGNVAR)
+    virtual AstNode* cloneType(AstNode* lhsp, AstNode* rhsp) { return new AstVhdlAssignVar(this->fileline(), lhsp, rhsp); }
+};
+
 struct AstAssignAlias : public AstNodeAssign {
     // Like AstAssignW, but a true bidirect interconnection alias
     // If both sides are wires, there's no LHS vs RHS,
@@ -1495,6 +1569,18 @@ public:
     virtual V3Hash sameHash() const { return V3Hash(); }  // Ignore name in comments
     virtual bool same(AstNode* samep) const { return true; }  // Ignore name in comments
 };
+
+struct AstVhdlCondalWhen : public AstNode {
+    // A VHDL Architecture declaration
+public:
+    AstVhdlCondalWhen(FileLine* fl, AstNode* prevp, AstNode* condp, AstNode* elsep)
+	: AstNode (fl)
+	 { setOp1p (prevp);
+	   setOp2p (condp);
+	   setOp3p (elsep); }
+    ASTNODE_NODE_FUNCS(VhdlCondalWhen, VHDLCONDALWHEN)
+};
+
 
 struct AstCond : public AstNodeCond {
     // Conditional ?: statement
@@ -2139,6 +2225,48 @@ public:
     void	unique0Pragma(bool flag) { m_unique0Pragma=flag; }
     bool	priorityPragma() const { return m_priorityPragma; }
     void	priorityPragma(bool flag) { m_priorityPragma=flag; }
+};
+
+struct AstVhdlFor : public AstNode {
+	// Ast For
+public:
+    AstVhdlFor(FileLine* fl, AstNode* varp, AstRange* rangep, AstNode* codep)
+	: AstNode (fl)
+	 { setOp1p (varp); setOp2p (rangep); setNOp3p(codep); }
+    ASTNODE_NODE_FUNCS(VhdlFor, VHDLFOR)
+	virtual AstNode* varp() { return op1p()->castNode(); }
+	virtual AstNode* rangep() { return op2p()->castNode(); }
+	virtual AstNode* codep() { return op3p()->castNode(); }
+    virtual string verilogKwd() const { return "vhdl_for"; }
+};
+
+struct AstVhdlSelect : public AstNode {
+	// Ast Select
+	// switchp: right part of the comparison
+	// targetp: variable to assign
+	// choicesp: choices
+public:
+    AstVhdlSelect(FileLine* fl, AstNode* switchp, AstNode* targetp, AstNode* choicesp)
+	: AstNode (fl)
+	 { setOp1p (switchp); setOp2p (targetp); setNOp3p(choicesp); }
+    ASTNODE_NODE_FUNCS(VhdlSelect, VHDLSELECT)
+	virtual AstNode* switchp() { return op1p()->castNode(); }
+	virtual AstNode* targetp() { return op2p()->castNode(); }
+	virtual AstNode* choicesp() { return op3p()->castNode(); }
+    virtual string verilogKwd() const { return "vhdl_select"; }
+};
+
+struct AstVhdlChoice : public AstNode {
+	// Ast Choice
+	// wavefrmp: waveform
+	// valuep: value to use this waveform
+public:
+    AstVhdlChoice(FileLine* fl, AstNode* wavefrmp, AstNode* valuep)
+	: AstNode (fl)
+	 { setOp1p (wavefrmp); setOp2p (valuep); }
+    ASTNODE_NODE_FUNCS(VhdlChoice, VHDLCHOICE)
+	virtual AstNode* wavefrmp() { return op1p()->castNode(); }
+	virtual AstNode* valuep() { return op2p()->castNode(); }
 };
 
 struct AstJumpLabel : public AstNodeStmt {
@@ -4133,10 +4261,12 @@ struct AstNetlist : public AstNode {
     AstNetlist() : AstNode(new FileLine("AstRoot",0)) {}
     ASTNODE_NODE_FUNCS(Netlist, NETLIST)
     AstNodeModule*	modulesp() 	const { return op1p()->castNodeModule();}	// op1 = List of modules
+    AstVhdlArchitecture* vhdlarchip() const { return op3p()->castVhdlArchitecture(); } // op3 = VHDL architectures
     AstNodeModule*  topModulep() const { return op1p()->castNodeModule(); }	// * = Top module in hierarchy (first one added, for now)
     void addModulep(AstNodeModule* modulep) { addOp1p(modulep); }
     AstCFile*	filesp() 	const { return op2p()->castCFile();}	// op2 = List of files
     void addFilesp(AstCFile* filep) { addOp2p(filep); }
+    void addVhdlArchitecturep(AstVhdlArchitecture* VhdlArchitecturep) { addOp3p(VhdlArchitecturep); } // op3 = VHDL architectures
 };
 
 //######################################################################

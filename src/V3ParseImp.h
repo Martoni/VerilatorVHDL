@@ -79,6 +79,8 @@ struct V3ParseBisonYYSType {
 	AstSenTree*	sentreep;
 	AstVar*		varp;
 	AstVarRef*	varrefp;
+
+	AstVhdlArchitecture* vhdlarchp;
     };
 };
 
@@ -291,6 +293,9 @@ public:
 	return nump;
     }
 
+    V3Number* newVhdlBitNumber (FileLine* fl, const char* text);
+    V3Number* newVhdlBitStringNumber (FileLine* fl, const char* text);
+
     // Return next token, for bison, since bison isn't class based, use a global THIS
     FileLine* fileline() const { return m_fileline; }
     AstNetlist* rootp() const { return m_rootp; }
@@ -334,8 +339,8 @@ public:
     // Preprocess and read the Verilog file specified into the netlist database
     int lexToBison();  // Pass token to bison
 
-    void parseFile(FileLine* fileline, const string& modfilename, bool inLibrary,
-		   const string& errmsg);
+    void parseFile(FileLine* fileline, const string& modfilename, bool inLibrary, const string& errmsg);
+    char* vhdlCharToV (char* str);
 
 private:
     void lexFile(const string& modname);

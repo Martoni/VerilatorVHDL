@@ -132,7 +132,7 @@ void yyerrorf(const char* format, ...) {
 %a 15000
 %o 25000
 
-%s V95 V01 V05 S05 S09
+%s V95 V01 V05 S05 S09 VHDL93
 %s STRING ATTRMODE TABLE
 %s VA5 SA9 PSL VLT
 %s SYSCHDR SYSCINT SYSCIMP SYSCIMPH SYSCCTOR SYSCDTOR
@@ -146,6 +146,27 @@ id	[a-zA-Z_][a-zA-Z0-9_$]*
 	/* escaped identifier */
 escid	\\[^ \t\f\r\n]+
 word	[a-zA-Z0-9_]+
+
+upper_case_letter 	  [A-Z]
+digit 			  [0-9]
+special_character   	  [\#\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\_\|]
+space_character 	  [ \t]
+format_VHDL_effector	  [\t\v\r\l\f]
+end_of_line		  \n
+lower_case_letter 	  [a-z]
+other_special_character   [\!\$\@\?\[\\\]\^\`\{\}\~]
+
+graphic_character	  ({basic_graphic_character}|{lower_case_letter}|{other_special_character})
+basic_graphic_character	  ({upper_case_letter}|{digit}|{special_character}|{space_character})
+letter		   	  ({upper_case_letter}|{lower_case_letter})
+letter_or_digit	   	  ({letter}|{digit})
+decimal_literal	   	  {integer}(\.{integer})?({exponent})?
+integer		   	  {digit}(_?{digit})*
+exponent	   	  ([eE][-+]?{integer})
+base		   	  {integer}
+based_integer	   	  {extended_digit}(_?{extended_digit})*
+extended_digit	   	  ({digit}|[a-fA-F])
+base_specifier	  	  (B|b|O|o|X|x)
 
 %%
 
@@ -1017,6 +1038,8 @@ word	[a-zA-Z0-9_]+
   "`begin_keywords"[ \t]*\"1800-2005\"		{ yy_push_state(S05); PARSEP->pushBeginKeywords(YY_START); }
   "`begin_keywords"[ \t]*\"1800-2009\"		{ yy_push_state(S09); PARSEP->pushBeginKeywords(YY_START); }
   "`begin_keywords"[ \t]*\"1800+VAMS\"		{ yy_push_state(SA9); PARSEP->pushBeginKeywords(YY_START); }
+  "`begin_keywords"[ \t]*\"1076-1993\"		{ yy_push_state(VHDL93); PARSEP->pushBeginKeywords(YY_START); }
+  "--begin_keywords"[ \t]*\"1076-1993\"		{ yy_push_state(VHDL93); PARSEP->pushBeginKeywords(YY_START); } // VHDL
   "`end_keywords"				{ yy_pop_state(); if (!PARSEP->popBeginKeywords()) yyerrorf("`end_keywords when not inside `begin_keywords block"); }
 
   /* Verilator */
@@ -1042,6 +1065,190 @@ word	[a-zA-Z0-9_]+
 <SYSCHDR,SYSCINT,SYSCIMP,SYSCIMPH,SYSCCTOR,SYSCDTOR,IGNORE>{
   {wsnr}*		{ yymore(); }
   {crnl}		{ NEXTLINE(); yymore(); }
+}
+  /************************************************************************/
+  /* VHDL rules */
+<VHDL93>{
+
+  /* Verilator specific input tokens */
+  "`line"{ws}+[^\n\r]*{crnl}		{ PARSEP->ppline(yytext); } // only one supporting ` because of preprocessor
+
+  "--begin_keywords"[ \t]*\"1364-1995\"		{ yy_push_state(V95); PARSEP->pushBeginKeywords(YY_START); }
+  "--begin_keywords"[ \t]*\"1364-2001\"		{ yy_push_state(V01); PARSEP->pushBeginKeywords(YY_START); }
+  "--begin_keywords"[ \t]*\"1364-2001-noconfig\"	{ yy_push_state(V01); PARSEP->pushBeginKeywords(YY_START); }
+  "--begin_keywords"[ \t]*\"1364-2005\"		{ yy_push_state(V05); PARSEP->pushBeginKeywords(YY_START); }
+  "--begin_keywords"[ \t]*\"1800-2005\"		{ yy_push_state(S05); PARSEP->pushBeginKeywords(YY_START); }
+  "--begin_keywords"[ \t]*\"1800-2009\"		{ yy_push_state(S09); PARSEP->pushBeginKeywords(YY_START); }
+  "--begin_keywords"[ \t]*\"1076-1993\"		{ yy_push_state(VHDL93); PARSEP->pushBeginKeywords(YY_START); }
+  "--end_keywords"							{ yy_pop_state(); if (!PARSEP->popBeginKeywords()) yyerrorf("--end_keywords when not inside --begin_keywords block"); }
+
+  "--verilator"[ \t]*"tracing_off"			{PARSEP->fileline()->tracingOn(false); }
+  "--verilator"[ \t]*"tracing_on"			{PARSEP->fileline()->tracingOn(true); }
+  "--verilator"[ \t]*"coverage_off"			{PARSEP->fileline()->coverageOn(false); }
+  "--verilator"[ \t]*"coverage_on"			{PARSEP->fileline()->coverageOn(true); }
+  "--verilator"[ \t]*"lint_off"[^*]*		{PARSEP->verilatorCmtLint(yytext, true); }
+  "--verilator"[ \t]*"lint_on"[^*]*			{PARSEP->verilatorCmtLint(yytext, false); }
+  "--verilator"[ \t]*"lint_restore"			{PARSEP->verilatorCmtLintRestore(); }
+  "--verilator"[ \t]*"lint_save"			{PARSEP->verilatorCmtLintSave(); }
+
+  /* VHDL tokens */
+
+  [ \t]*"--".*$		{}
+
+  (?i:"abs")		{FL; return vhdl_ABS;}
+  (?i:"access")		{FL; return vhdl_ACCESS;}
+  (?i:"after")		{FL; return vhdl_AFTER;}
+  (?i:"alias")		{FL; return vhdl_ALIAS;}
+  (?i:"all")		{FL; return vhdl_ALL;}
+  (?i:"and")		{FL; return vhdl_AND;}
+  (?i:"architecture")	{FL; return vhdl_ARCHITECTURE;}
+  (?i:"array")		{FL; return vhdl_ARRAY;}
+  (?i:"assert")		{FL; return vhdl_ASSERT;}
+  (?i:"attribute")	{FL; return vhdl_ATTRIBUTE;}
+
+  (?i:"begin")		{FL; return vhdl_BEGIN;}
+  (?i:"block")		{FL; return vhdl_BLOCK;}
+  (?i:"body")		{FL; return vhdl_BODY;}
+  (?i:"buffer")		{FL; return vhdl_BUFFER;}
+  (?i:"bus")		{FL; return vhdl_BUS;}
+
+  (?i:"case")		{FL; return vhdl_CASE;}
+  (?i:"component")	{FL; return vhdl_COMPONENT;}
+  (?i:"configuration")	{FL; return vhdl_CONFIGURATION;}
+  (?i:"constant")	{FL; return vhdl_CONSTANT;}
+
+  (?i:"disconnect")	{FL; return vhdl_DISCONNECT;}
+  (?i:"downto")		{FL; return vhdl_DOWNTO;}
+
+  (?i:"else")		{FL; return vhdl_ELSE;}
+  (?i:"elsif")		{FL; return vhdl_ELSIF;}
+  (?i:"end")		{FL; return vhdl_END;}
+  (?i:"entity")		{FL; return vhdl_ENTITY;}
+  (?i:"exit")		{FL; return vhdl_EXIT;}
+
+  (?i:"file")		{FL; return vhdl_FILE;}
+  (?i:"for")		{FL; return vhdl_FOR;}
+  (?i:"function")	{FL; return vhdl_FUNCTION;}
+
+  (?i:"generate")	{FL; return vhdl_GENERATE;}
+  (?i:"generic")	{FL; return vhdl_GENERIC;}
+  (?i:"guarded")	{FL; return vhdl_GUARDED;}
+
+  (?i:"if")		{FL; return vhdl_IF;}
+  (?i:"in")		{FL; return vhdl_IN;}
+  (?i:"inout")		{FL; return vhdl_INOUT;}
+  (?i:"is")		{FL; return vhdl_IS;}
+
+  (?i:"label")		{FL; return vhdl_LABEL;}
+  (?i:"library")	{FL; return vhdl_LIBRARY;}
+  (?i:"linkage")	{FL; return vhdl_LINKAGE;}
+  (?i:"loop")		{FL; return vhdl_LOOP;}
+
+  (?i:"map")		{FL; return vhdl_MAP;}
+  (?i:"mod")		{FL; return vhdl_MOD;}
+
+  (?i:"nand")		{FL; return vhdl_NAND;}
+  (?i:"new")		{FL; return vhdl_NEW;}
+  (?i:"next")		{FL; return vhdl_NEXT;}
+  (?i:"nor")		{FL; return vhdl_NOR;}
+  (?i:"not")		{FL; return vhdl_NOT;}
+  (?i:"null")		{FL; return vhdl_NULL;}
+
+  (?i:"of")		{FL; return vhdl_OF;}
+  (?i:"on")		{FL; return vhdl_ON;}
+  (?i:"open")		{FL; return vhdl_OPEN;}
+  (?i:"or")		{FL; return vhdl_OR;}
+  (?i:"others")		{FL; return vhdl_OTHERS;}
+  (?i:"out")		{FL; return vhdl_OUT;}
+
+  (?i:"package")	{FL; return vhdl_PACKAGE;}
+  (?i:"port")		{FL; return vhdl_PORT;}
+  (?i:"procedure")	{FL; return vhdl_PROCEDURE;}
+  (?i:"process")	{FL; return vhdl_PROCESS;}
+
+  (?i:"range")		{FL; return vhdl_RANGE;}
+  (?i:"record")		{FL; return vhdl_RECORD;}
+  (?i:"register")	{FL; return vhdl_REGISTER;}
+  (?i:"rem")		{FL; return vhdl_REM;}
+  (?i:"report")		{FL; return vhdl_REPORT;}
+  (?i:"return")		{FL; return vhdl_RETURN;}
+
+  (?i:"select")		{FL; return vhdl_SELECT;}
+  (?i:"severity")	{FL; return vhdl_SEVERITY;}
+  (?i:"signal")		{FL; return vhdl_SIGNAL;}
+  (?i:"subtype")	{FL; return vhdl_SUBTYPE;}
+
+  (?i:"then")		{FL; return vhdl_THEN;}
+  (?i:"to")		{FL; return vhdl_TO;}
+  (?i:"transport")	{FL; return vhdl_TRANSPORT;}
+  (?i:"type")		{FL; return vhdl_TYPE;}
+
+  (?i:"units")		{FL; return vhdl_UNITS;}
+  (?i:"until")		{FL; return vhdl_UNTIL;}
+  (?i:"use")		{FL; return vhdl_USE;}
+
+  (?i:"variable")	{FL; return vhdl_VARIABLE;}
+
+  (?i:"wait")		{FL; return vhdl_WAIT;}
+  (?i:"when")		{FL; return vhdl_WHEN;}
+  (?i:"while")		{FL; return vhdl_WHILE;}
+  (?i:"with")		{FL; return vhdl_WITH;}
+
+  (?i:"xor")		{FL; return vhdl_XOR;}
+
+  (?i:"std_logic")      {FL; return vhdl_BIT;}
+  (?i:"bit")            {FL; return vhdl_BIT;}
+  (?i:"std_ulogic")     {FL; return vhdl_BIT;}
+
+  (?i:"bit_vector")      {FL; return vhdl_UNSIGNED_VECT;}
+  (?i:"unsigned")       {FL; return vhdl_UNSIGNED_VECT;}
+  (?i:"std_logic_vector") {FL; return vhdl_UNSIGNED_VECT;}
+  (?i:"std_ulogic_vector") {FL; return vhdl_UNSIGNED_VECT;}
+  (?i:"signed")          {FL; return vhdl_SIGNED_VECT;}
+
+  (?i:"integer")  	{FL; return vhdl_INTEGER; }
+
+  {space_character}	{}
+
+  "&"			{FL; return(vhdl_AMPERSAND);}
+  "'"			{FL; return(vhdl_APOSTROPHE);}
+  "("			{FL; return(vhdl_LEFTPAREN);}
+  ")"			{FL; return(vhdl_RIGHTPAREN);}
+  "**"			{FL; return(vhdl_DOUBLESTAR);}
+  "*"			{FL; return(vhdl_STAR);}
+  "+"			{FL; return(vhdl_PLUS);}
+  ","			{FL; return(vhdl_COMMA);}
+  "-"			{FL; return(vhdl_MINUS);}
+  ":="			{FL; return(vhdl_VARASGN);}
+  ":"			{FL; return(vhdl_COLON);}
+  ";"			{FL; return(vhdl_SEMICOLON);}
+  "<="			{FL; return(vhdl_LESYM);}
+  ">="			{FL; return(vhdl_GESYM);}
+  "<"			{FL; return(vhdl_LTSYM);}
+  ">"			{FL; return(vhdl_GTSYM);}
+  "="			{FL; return(vhdl_EQSYM);}
+  "/="			{FL; return(vhdl_NESYM);}
+  "=>"			{FL; return(vhdl_ARROW);}
+  "<>"			{FL; return(vhdl_BOX);}
+  "|"			{FL; return(vhdl_BAR);}
+  "!"			{FL; return(vhdl_BAR);}
+  "."			{FL; return(vhdl_DOT);}
+  "/"			{FL; return(vhdl_SLASH);}
+
+  {letter}(_?{letter_or_digit})* 	{FL; yylval.strp = PARSEP->newString(AstNode::encodeName(string(yytext))); return vhdl_IDENTIFIER;}
+
+  ({decimal_literal})|({base}#{based_integer}(\.{based_integer})?#({exponent})?)|({base}:{based_integer}(\.{based_integer})?:({exponent})?)		{FL; yylval.nump = PARSEP->newNumber(yylval.fl,(char*)yytext); return ( vhdl_ABSTRACTLIT );}
+
+  '({graphic_character}|\"|\%)' 	{FL; yylval.nump = PARSEP->newVhdlBitNumber (yylval.fl, (char*)yytext); return ( vhdl_CHARACTERLIT );}
+
+  (\"({graphic_character}|(\"\")|\%)*\")|(\%({graphic_character}|(\%\%)|\")*\%) {FL; yylval.strp = PARSEP->newString(string(yytext)); return ( vhdl_STRINGLIT );}
+
+  {base_specifier}(\"{extended_digit}(_?{extended_digit})*\"|\%{extended_digit}(_?{extended_digit})*\%) {FL; yylval.nump = PARSEP->newVhdlBitStringNumber(yylval.fl,(char*)yytext); return ( vhdl_BITSTRINGLIT );}
+
+  "\n"		{NEXTLINE(); yymore();}
+
+  .		{}
+
 }
 
   /************************************************************************/

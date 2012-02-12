@@ -45,6 +45,7 @@ class LinkJumpVisitor : public AstNVisitor {
 private:
     // TYPES
     typedef vector<AstBegin*> BeginStack;
+	typedef map <string, AstNode*> SenItemList;
 
     // STATE
     AstNodeModule*	m_modp;		// Current module
@@ -53,7 +54,8 @@ private:
     bool		m_loopInc;	// In loop increment
     int			m_repeatNum;	// Repeat counter
     BeginStack		m_beginStack;	// All begin blocks above current node
-    
+	SenItemList  m_senItemList; // List of the signals process is sensitive to (VHDL)
+	bool 		m_clocked; // VHDL Process is clocked
     // METHODS
     static int debug() {
 	static int level = -1;
@@ -243,9 +245,130 @@ private:
     }
 
     virtual void visit(AstConst* nodep, AstNUser*) {}
+
+    virtual void visit(AstAlways* nodep, AstNUser*) {
+		m_clocked = false;
+		nodep->iterateChildren(*this);
+		m_senItemList.clear(); // After iterating children in this process, clear the map
+		m_clocked = false;
+    }
+
+    virtual void visit(AstIf* nodep, AstNUser*) {
+		static int levelcnt = 0;
+		if (m_clocked == true)
+			levelcnt++;
+		nodep->iterateChildren(*this);
+		levelcnt --;
+		if (levelcnt == 0)
+			m_clocked = false;
+    }
+
+	virtual void visit(AstSenItem* nodep, AstNUser*) {
+		AstNodeVarRef* m_varrefp = nodep->varrefp();
+		m_senItemList [m_varrefp->name()] = nodep;
+		nodep->iterateChildren(*this);
+    }
+
+    virtual void visit(AstVhdlQuotedAttribute* nodep, AstNUser*) {
+		if (nodep->name() == "event") {
+			transformVhdlEvent (nodep);
+			m_clocked = true; // mark this part of the process as clocked
+		}
+		else {
+			nodep->v3error ("Unsupported or invalid attribute " << nodep->name());
+		}
+		nodep->iterateChildren(*this);
+    }
+
+	virtual void visit(AstVhdlAssignVar* nodep, AstNUser*) {
+	AstNode* valuep = nodep->op1p()->unlinkFrBack();
+	AstNode* targetp = nodep->op2p()->unlinkFrBack();
+	AstNode* newp = new AstAssign (nodep->fileline(), targetp, valuep);
+	nodep->replaceWith(newp);
+	nodep->iterateChildren(*this);
+    }
+
+    virtual void visit(AstVhdlAssignSig* nodep, AstNUser*) {
+	AstNode* valuep = nodep->op1p()->unlinkFrBack();
+	AstNode* targetp = nodep->op2p()->unlinkFrBack();
+	AstNode* newp = NULL;
+	if (m_clocked) {
+		newp = new AstAssignDly (nodep->fileline(), targetp, valuep);
+	}
+	else {
+		newp = new AstAssign (nodep->fileline(), targetp, valuep);
+	}
+	nodep->replaceWith(newp);
+	nodep->iterateChildren(*this);
+    }
+
     virtual void visit(AstNode* nodep, AstNUser*) {
 	nodep->iterateChildren(*this);
     }
+
+	void transformVhdlEvent (AstNode* nodep) {
+		AstAnd* m_prevp = nodep->backp()->castAnd(); // AstAnd over the attribute
+		AstNode* m_varref = NULL; // variable referenced in the attribute
+		AstNode* m_eqvarref = NULL; // variable reference in the equality
+		AstNode* m_senref = NULL; // Corresponding element in the sensitivity list
+		AstEq* m_eqref = NULL; // Equality check for edges
+		AstConst* m_constref = NULL; // Constant value under the equality
+
+		if ( nodep->castVhdlQuotedAttribute()->idp()) {
+			m_varref = nodep->castVhdlQuotedAttribute()->idp()->unlinkFrBack();
+			m_senref = m_senItemList[m_varref->name()]; // Corresponding element in the sensitivity list
+		}
+
+		if (m_senref) { // if  found in sensitivity list
+			if (m_prevp) { // If signal'event and signal=const
+					if (m_prevp->lhsp()->castEq()) { // Search for AstEq left and right in AstAnd
+						m_eqref = m_prevp->lhsp()->castEq();
+					}
+					else if (m_prevp->rhsp()->castEq()) {
+						m_eqref = m_prevp->rhsp()->castEq();
+					}
+					else {
+						nodep->v3error ("Unable to find a synthesizable construct");
+					}
+
+					if (m_eqref->lhsp()->castConst() and m_eqref->rhsp()->castVarRef()) { // Search for const left and right in AstEq
+						m_constref = m_eqref->lhsp()->castConst();
+						m_eqvarref = m_eqref->rhsp()->castVarRef();
+					}
+					else if (m_eqref->rhsp()->castConst() and m_eqref->lhsp()->castVarRef()) {
+						m_constref = m_eqref->rhsp()->castConst();
+						m_eqvarref = m_eqref->lhsp()->castVarRef();
+					}
+					else {
+						nodep->v3error ("Unable to find a synthesizable construct, value is not equal to a constant");
+					}
+
+					if (m_varref->same(m_eqvarref)) {
+							if (m_constref->toUInt() == 0) { // Falling edge
+								m_senref->castSenItem()->edgeType (AstEdgeType::ET_NEGEDGE);
+							}
+							else if (m_constref->toUInt() == 1) { // Rising edge
+								m_senref->castSenItem()->edgeType (AstEdgeType::ET_POSEDGE);
+							}
+							else {
+								nodep->v3error ("Unable to find a synthesizable construct, value is not covered in the constant values");
+							}
+							m_prevp->replaceWith (m_varref);
+					}
+					else { // If the value of the attribute is different than the one from the equality
+						m_senref->castSenItem()->edgeType (AstEdgeType::ET_BOTHEDGE);
+						nodep->replaceWith (m_varref);
+					}
+				}
+				else { // if no check for equality, sensitive to both edges
+					m_senref->castSenItem()->edgeType (AstEdgeType::ET_BOTHEDGE);
+					nodep->replaceWith (m_varref);
+				}
+		}
+		else {
+			nodep->v3error ("Signal " << m_varref->name()  << " is not in sensitivity list");
+		}
+	}
 public:
     // CONSTUCTORS
     LinkJumpVisitor(AstNetlist* nodep) {

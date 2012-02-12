@@ -157,6 +157,156 @@ void V3ParseImp::lexFile(const string& modname) {
     if (bisonParse()) v3fatal("Cannot continue\n");
 }
 
+V3Number* V3ParseImp::newVhdlBitNumber (FileLine* fl, const char* str)
+{
+    string tgtVerilogStr;
+
+    tgtVerilogStr = "1'b";
+    switch (str[1])
+    {
+        case '0':
+        case 'l':
+        case 'L':
+            tgtVerilogStr += '0';
+	    break;
+
+        case '1':
+        case 'h':
+        case 'H':
+            tgtVerilogStr += '1';
+            break;
+
+        case 'z':
+        case 'Z':
+            tgtVerilogStr += 'z';
+            break;
+
+        case 'u':
+        case 'U':
+        case 'x':
+        case 'X':
+        case 'w':
+        case 'W':
+        case '-':
+            tgtVerilogStr += 'x';
+            break;
+
+        default:
+            break;
+    };
+        V3Number* nump = new V3Number (fl, (char*)tgtVerilogStr.c_str());
+        m_numberps.push_back(nump);
+	return nump;
+}
+
+V3Number* V3ParseImp::newVhdlBitStringNumber (FileLine* fl, const char* str)
+{
+    string tgtVerilogStr;
+    string numberStr;
+	stringstream ss;
+
+    char base;
+    char charVal;
+
+    unsigned int numberOfBits;
+    unsigned int startPos;
+    unsigned int stringLength;
+	unsigned int i;
+
+    switch (str[0])
+    {
+        case 'X': // Hexadecimal
+        case 'x':
+            base = 'h';
+            numberOfBits = 4;
+            startPos = 2;
+            break;
+
+        case 'O': // Octal
+        case 'o':
+            base = 'o';
+            numberOfBits = 3;
+            startPos = 2;
+            break;
+
+        case 'B': // Binary
+        case 'b':
+            base = 'b';
+            numberOfBits = 1;
+            startPos = 2;
+            break;
+
+        case '"': // Binary by default
+            base = 'b';
+            numberOfBits = 1;
+            startPos = 1;
+            break;
+
+        default:
+            break;
+    }
+
+    tgtVerilogStr = "1'b";
+    numberStr = "";
+    stringLength = 0;
+
+    for (i = 0; str [ i + startPos ] != '"' and str [ i + startPos ] != '\0'; ++i) // while not end of string
+	{
+		charVal = str[ i + startPos ];
+	    switch (charVal)
+	    {
+	        case 'l':
+   	        case 'L':
+                numberStr += '0';
+				stringLength += numberOfBits;
+    	        break;
+
+            case 'h':
+            case 'H':
+                numberStr += '1';
+				stringLength += numberOfBits;
+                break;
+
+            case 'z':
+            case 'Z':
+                numberStr += 'z';
+				stringLength += numberOfBits;
+                break;
+
+            case 'u':
+            case 'U':
+            case 'x':
+            case 'X':
+            case 'w':
+            case 'W':
+            case '-':
+                numberStr += 'x';
+				stringLength += numberOfBits;
+                break;
+            
+            case '_': // separator
+				break;
+
+            default: // If hexadecimal value
+                if ( (charVal >= '0' and charVal <= '9')
+                   or (charVal >= 'A' and charVal <= 'F')
+                   or (charVal >= 'a' and charVal <= 'f') )
+				{
+					numberStr += charVal;
+					stringLength += numberOfBits;
+				}
+          		  break;
+    	};
+	}
+	ss << stringLength << "'" << base << numberStr;
+	tgtVerilogStr = ss.str();
+    V3Number* nump = new V3Number (fl, (char*)tgtVerilogStr.c_str());
+    m_numberps.push_back(nump);
+	return nump;
+}
+
+
+
 //======================================================================
 // V3Parse functions
 
