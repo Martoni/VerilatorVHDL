@@ -1207,6 +1207,7 @@ base_specifier	  	  (B|b|O|o|X|x)
   (?i:"signed")          {FL; return vhdl_SIGNED_VECT;}
 
   (?i:"integer")  	{FL; return vhdl_INTEGER; }
+  (?i:"false")		{FL; return vhdl_FALSE; }
 
   {space_character}	{}
 

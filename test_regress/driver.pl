@@ -372,6 +372,8 @@ sub new {
     $self->{vcd_filename}  ||= "$self->{obj_dir}/sim.vcd";
     $self->{main_filename} ||= "$self->{obj_dir}/$self->{VM_PREFIX}__main.cpp";
     ($self->{top_filename} = $self->{pl_filename}) =~ s/\.pl$//;
+	$self->{top_object} = (split(/\//, $self->{top_filename}))[-1];
+
     if (-e ($self->{top_filename}.".vhd")) { # If VHDL file exists
 	$self->{vhdl} = 1;
         $self->{top_filename} .= ".vhd";
@@ -530,19 +532,26 @@ sub compile {
     elsif ($param{ghdl}) {
 	mkdir $self->{ghdl_work_dir};
 	$self->_make_top();
+	# Analyze
+	$self->_run(logfile=>"$self->{obj_dir}/ghdl_compile.log",
+		    fails=>$param{fails},
+		    cmd=>[($ENV{VERILATOR_GHDL}||"ghdl"),
+			  ((($ENV{VERILATOR_GHDL}||' ') =~ / -a\b/) ? "" : "-a"),
+			  @{$param{ghdl_flags}},
+			  @{$param{ghdl_flags2}},
+			  $param{top_filename},
+			  $param{top_shell_filename},
+			  @{$param{v_other_filenames}},
+			  ]);
+	#Elaborate
 	$self->_run(logfile=>"$self->{obj_dir}/ghdl_compile.log",
 		    fails=>$param{fails},
 		    cmd=>[($ENV{VERILATOR_GHDL}||"ghdl"),
 			  # Add -c here, as having -c twice freaks it out
-			  ((($ENV{VERILATOR_GHDL}||' ') =~ / -c\b/) ? "" : "-c"),
+			  ((($ENV{VERILATOR_GHDL}||' ') =~ / -e\b/) ? "" : "-e"),
 			  @{$param{ghdl_flags}},
 			  @{$param{ghdl_flags2}},
-			  #@{$param{v_flags}},  # Not supported
-			  #@{$param{v_flags2}}, # Not supported
-			  $param{top_filename},
-			  $param{top_shell_filename},
-			  @{$param{v_other_filenames}},
-			  "-e t",
+			  "-o $self->{obj_dir}/simghdl testbench",
 			  ]);
     }
     elsif ($param{vcs}) {
@@ -1134,10 +1143,11 @@ sub _make_top_vhdl {
 
     my $fh = IO::File->new(">$self->{top_shell_filename}") or die "%Error: $! $self->{top_shell_filename},";
     print $fh "library ieee;\n";
+    print $fh "use ieee.std_logic_1164.all;\n\n";
 
     my @ports = sort (keys %{$self->{inputs}});
 
-    print $fh "entity t_ent is\n";
+    print $fh "entity testbench is\n";
     if ($#ports >= 0) {
 	print $fh "       port(\n";
 	my $semi = "";
@@ -1147,13 +1157,23 @@ sub _make_top_vhdl {
 	}
 	print $fh "    );\n";
     }
-    print $fh "end;\n";
-
-    print $fh "entity top is\n";
-    print $fh "end;\n";
+    print $fh "end entity;\n\n";
 
     # Inst
-    print $fh "architecture t_beh of t_ent is\n";
+    print $fh "architecture test of testbench is\n";
+    print $fh "    component $self->{top_object} is\n";
+    if ($#ports >= 0) {
+	print $fh "       port(\n";
+	my $semi = "";
+	foreach my $inp (@ports) {
+	    print $fh "\t${semi}${inp} : in std_logic\n";
+	    $semi=";";
+	}
+	print $fh "    );\n";
+    }
+    print $fh "    end component;\n\n";
+
+
     if ($#ports >= 0) {
 	foreach my $inp (@ports) {
 	    print $fh "\tsignal ${inp} : std_logic := '0';\n";
@@ -1161,7 +1181,7 @@ sub _make_top_vhdl {
     }
     print $fh "   begin\n";
 
-    print $fh "    t : t_ent\n";
+    print $fh "    inst : $self->{top_object}\n";
     if ($#ports >= 0) {
 	print $fh "       port map(\n";
 	my $comma="";
@@ -1173,12 +1193,11 @@ sub _make_top_vhdl {
     }
     print $fh "   ;\n";
 
-    print $fh "   end;\n";
+    print $fh "end architecture;\n";
 
     # Waves TBD
     # Test TBD
 
-    print $fh "end;\n";
     $fh->close();
 }
 

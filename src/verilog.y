@@ -718,6 +718,7 @@ class AstSenTree;
 %token<fl> vhdl_UNSIGNED_VECT
 
 %token<fl> vhdl_INTEGER
+%token<fl> vhdl_FALSE
 
 %start source_text
 
@@ -4554,15 +4555,20 @@ seq_stat<nodep>:
 	;
 
 assertion_stat<nodep>:
-		vhdl_ASSERT vhdl_expr report_stat vhdl_SEMICOLON
+		vhdl_ASSERT vhdl_FALSE report_stat vhdl_SEMICOLON
+		{ $$ = $3; }
+	|	vhdl_ASSERT vhdl_expr report_stat vhdl_SEMICOLON
 		{ $$ = new AstIf ($1, new AstNot($1, $2), $3, NULL); }
 	;
 
 report_stat<nodep>:
 /*  vhdl_REPORT vhdl_expr assertion_stat_2 ---TO FIX--- */
 	vhdl_REPORT vhdl_STRINGLIT report_stat_1
-		{ $$ = new AstDisplay ($1, AstDisplayType::DT_INFO, *$2, NULL, NULL);
-		  if ($3 && *$3 == "failure") $$->addNext (new AstFinish($1));
+		{ $$ = new AstDisplay ($1, AstDisplayType::DT_DISPLAY, *$2, NULL, NULL);
+		  if ($3 && *$3 == "failure") {
+				 $$->addNext (new AstStop($1)); }
+          else if ($3 && *$3 == "error") {
+				 $$->addNext (new AstFinish($1)); }
 		}
 	;
 
