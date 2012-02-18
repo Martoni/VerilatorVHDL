@@ -385,6 +385,7 @@ sub new {
     } else {
 	$self->{top_shell_filename} = "$self->{obj_dir}/$self->{VM_PREFIX}__top.v";
     }
+	($self->{vhdl_simhelper} = $self->{pl_filename}) =~ s/\/.*\.pl/\/vhdl_simhelper.vhd/;
     return $self;
 }
 
@@ -539,6 +540,7 @@ sub compile {
 			  ((($ENV{VERILATOR_GHDL}||' ') =~ / -a\b/) ? "" : "-a"),
 			  @{$param{ghdl_flags}},
 			  @{$param{ghdl_flags2}},
+			  $param{vhdl_simhelper},
 			  $param{top_filename},
 			  $param{top_shell_filename},
 			  @{$param{v_other_filenames}},
@@ -676,6 +678,7 @@ sub execute {
     elsif ($param{ghdl}) {
 	$self->_run(logfile=>"$self->{obj_dir}/ghdl_sim.log",
 		    fails=>$param{fails},
+		    ghdl=>1,
 		    cmd=>[$run_env."$self->{obj_dir}/simghdl",
 			  @{$param{ghdl_run_flags}},
 			  @{$param{all_run_flags}},
@@ -866,20 +869,24 @@ sub _run {
     flush STDOUT;
     flush STDERR;
 
+	my $vhdl = $param{ghdl};
+
     if ($param{logfile}) {
 	open (STDOUT, ">&SAVEOUT");
 	open (STDERR, ">&SAVEERR");
     }
-
-    if (!$param{fails} && $status) {
+    if (!$param{fails} && $status && !$vhdl) {
 	$self->error("Exec of $param{cmd}[0] failed\n");
     }
-    if ($param{fails} && $status) {
+	if ($param{fails} && $status && !$vhdl) {
 	print "(Exec expected to fail, and did.)\n";
     }
-    if ($param{fails} && !$status) {
+    if ($param{fails} && !$status && !$vhdl) {
 	$self->error("Exec of $param{cmd}[0] ok, but expected to fail\n");
     }
+	if ($vhdl) {
+	print "Running GHDL generated testbench\n";
+	}
     return if $self->errors || $self->skips;
 
     # Read the log file a couple of times to allow for NFS delays
