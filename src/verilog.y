@@ -4555,7 +4555,7 @@ seq_stat<nodep>:
 	;
 
 assertion_stat<nodep>:
-		vhdl_ASSERT vhdl_FALSE report_stat vhdl_SEMICOLON
+		vhdl_ASSERT vhdl_FALSE report_stat // Semicolon is in report stmt
 		{ $$ = $3; }
 	|	vhdl_ASSERT vhdl_expr report_stat vhdl_SEMICOLON
 		{ $$ = new AstIf ($1, new AstNot($1, $2), $3, NULL); }
@@ -4563,7 +4563,7 @@ assertion_stat<nodep>:
 
 report_stat<nodep>:
 /*  vhdl_REPORT vhdl_expr assertion_stat_2 ---TO FIX--- */
-	vhdl_REPORT vhdl_STRINGLIT report_stat_1
+	vhdl_REPORT vhdl_STRINGLIT report_stat_1 vhdl_SEMICOLON
 		{ $$ = new AstDisplay ($1, AstDisplayType::DT_DISPLAY, *$2, NULL, NULL);
 		  if ($3 && *$3 == "failure") {
 				 $$->addNext (new AstStop($1)); }
