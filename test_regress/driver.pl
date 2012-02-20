@@ -1155,15 +1155,6 @@ sub _make_top_vhdl {
     my @ports = sort (keys %{$self->{inputs}});
 
     print $fh "entity testbench is\n";
-    if ($#ports >= 0) {
-	print $fh "       port(\n";
-	my $semi = "";
-	foreach my $inp (@ports) {
-	    print $fh "\t${semi}${inp} : in std_logic\n";
-	    $semi=";";
-	}
-	print $fh "    );\n";
-    }
     print $fh "end entity;\n\n";
 
     # Inst
@@ -1173,7 +1164,7 @@ sub _make_top_vhdl {
 	print $fh "       port(\n";
 	my $semi = "";
 	foreach my $inp (@ports) {
-	    print $fh "\t${semi}${inp} : in std_logic\n";
+	    print $fh "\t\t\t${semi}${inp} : in std_logic\n";
 	    $semi=";";
 	}
 	print $fh "    );\n";
@@ -1186,19 +1177,25 @@ sub _make_top_vhdl {
 	    print $fh "\tsignal ${inp} : std_logic := '0';\n";
 	}
     }
-    print $fh "   begin\n";
+    print $fh "\n   begin\n";
 
     print $fh "    inst : $self->{top_object}\n";
     if ($#ports >= 0) {
 	print $fh "       port map(\n";
 	my $comma="";
 	foreach my $inp (@ports) {
-	    print $fh "\t${comma}${inp} => ${inp}\n";
+	    print $fh "\t\t${comma}${inp} => ${inp}\n";
 	    $comma=",";
 	}
 	print $fh "    )\n";
     }
     print $fh "   ;\n";
+
+	print $fh "clkgen: process\n";
+	print $fh "begin\n";
+	print $fh "\tclk <= not clk;\n";
+	print $fh "\twait for 5 ns;\n";
+	print $fh "end process;\n\n";
 
     print $fh "end architecture;\n";
 
@@ -1253,8 +1250,9 @@ sub _read_inputs_vhdl {
 	# Only supports this form right now:
 	# signal: in ...
 	# signal: out ...
-	if ($line =~ /^\s*(\S+)\s*:\s*(in)\b\s*/) {
+	if ($line =~ /\s*\(?(\S+)\s*:\s*(in)\b\s*/) {
 	    $self->{inputs}{$1} = $1;
+		print $line;
 	}
 	if ($line =~ /^\s*(architecture)/) {
 	    last;
