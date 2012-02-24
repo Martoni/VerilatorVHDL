@@ -3920,20 +3920,10 @@ primary<nodep>:
 	{ $$ = $2; }
 ;
 
-vhdlParseRef<parserefp>:
-	name
-	{ $$ = $1->castParseRef(); }
-	;
-
 name<nodep>:
 	mark
 	{ $$ = $1 }
-|	name2
-	{ $$ = $1; }
-;
-
-name2<nodep>:
-	vhdl_STRINGLIT
+|	vhdl_STRINGLIT
 	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
 |	attribute_name
 	{ $$ = $1; }
@@ -3959,19 +3949,14 @@ suffix<nodep>:
 
 /* UNSUP
 ifts_name:
-	mark gen_association_list
-|	name2 gen_association_list
+	name gen_association_list
 ;
 */
 
 attribute_name<nodep>:
-	mark vhdl_APOSTROPHE vhdl_IDENTIFIER
+	name vhdl_APOSTROPHE vhdl_IDENTIFIER
 	{ $$ = new AstVhdlQuotedAttribute ($2, $1, *$3); }
-|	name2 vhdl_APOSTROPHE vhdl_IDENTIFIER
-	{ $$ = new AstVhdlQuotedAttribute ($2, $1, *$3); }
-|	mark vhdl_APOSTROPHE vhdl_RANGE
-	{ $$ = new AstVhdlQuotedAttribute ($2, $1, "range"); }
-|	name2 vhdl_APOSTROPHE vhdl_RANGE
+|	name vhdl_APOSTROPHE vhdl_RANGE
 	{ $$ = new AstVhdlQuotedAttribute ($2, $1, "range"); }
 ;
 
@@ -4511,10 +4496,10 @@ procs_stat1_1<sentreep>:
 	;
 
 sensitivity_list<senitemp>:
-		vhdlParseRef
-		{ $$ = new AstSenItem ($<fl>1, AstEdgeType::ET_ANYEDGE, $1); }
-	|	sensitivity_list vhdl_COMMA vhdlParseRef
-		{ $$ = $1->addNextNull(new AstSenItem ($2, AstEdgeType::ET_ANYEDGE, $3))->castSenItem(); }
+		name
+		{ $$ = new AstSenItem ($<fl>1, AstEdgeType::ET_ANYEDGE, $1->castParseRef()); }
+	|	sensitivity_list vhdl_COMMA name
+		{ $$ = $1->addNextNull(new AstSenItem ($2, AstEdgeType::ET_ANYEDGE, $3->castParseRef()))->castSenItem(); }
 	;
 
 /*--------------------------------------------------
