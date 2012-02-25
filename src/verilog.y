@@ -3322,11 +3322,13 @@ vltOffFront<errcodeen>:
 // **********************************************************************
 // VHDL GRAMMAR
 
-designator<nodep>:
+designator<strp>:
 		vhdl_IDENTIFIER
-		{ $$ = new AstText ($<fl>1, *$1); }
+		{ $$ = $1; }
+/* UNSUP
 	|	vhdl_STRINGLIT
-		{ $$ = new AstText ($<fl>1, *$1); }
+		{ $$ = $1; }
+*/
 	;
 
 literal<nodep>:
@@ -3408,9 +3410,9 @@ sel_list:
 /*------------------------------------------
 --  Library Units
 --------------------------------------------*/
-
+// Entity Declaration 1.1 LRM
 entity_decl<vhdl_entityp>:
-		entity_start entity_decl_1 entity_decl_2 entity_decl_3 entity_decl_4 vhdl_END entity_decl_5 vhdl_SEMICOLON
+		entity_start entity_header_1 entity_header_2 entity_declarative_part entity_statement_part vhdl_END entity_decl_finish vhdl_SEMICOLON
 		{ if ($2) $1->addStmtp ($2);
 		  if ($3) $1->addStmtp ($3);
 		  if ($4) $1->addStmtp ($4);
@@ -3427,38 +3429,39 @@ entity_start<modulep>:
 		  SYMP->pushNew($$); }
 	;
 
-entity_decl_1<nodep>:
+entity_header_1<nodep>:
         { $$ = NULL; }
-	|	vhdl_GENERIC { VARRESET_LIST(GPARAM); } generic_interf_list vhdl_SEMICOLON
+	|	vhdl_GENERIC { VARRESET_LIST(GPARAM); } generic_formal_param_list vhdl_SEMICOLON
 	    { $$ = $3; VARRESET_LIST(UNKNOWN); }
 	;
 
-entity_decl_2<nodep>:
+entity_header_2<nodep>:
 		{ $$ = NULL; }
-	|	vhdl_PORT { VARRESET_LIST(PORT); } interf_list vhdl_SEMICOLON
+	|	vhdl_PORT { VARRESET_LIST(PORT); } formal_param_list vhdl_SEMICOLON
 		{ $$ = $3; VARRESET_LIST(UNKNOWN); }
 	;
 
-entity_decl_3<nodep>:
+entity_declarative_part<nodep>:
         { $$ = NULL; }
-	|	entity_decl_3 entity_decltve_item
+	|	entity_declarative_part entity_decltve_item
 	    { $$ = $1->addNext ($2); }
 	;
 
-entity_decl_4<nodep>:
+entity_statement_part<nodep>:
         { $$ = NULL; }
 	|	vhdl_BEGIN concurrent_stats
 	    { $$ = $2; }
 	;
 
-entity_decl_5:
+entity_decl_finish: // Nothing to return here
 	|	vhdl_IDENTIFIER
 	|	vhdl_ENTITY
 	|	vhdl_ENTITY vhdl_IDENTIFIER
 	;
 
+// Architecture bodies 1.2 LRM
 arch_body<modulep>:
-		arch_start arch_body_declarations vhdl_BEGIN concurrent_stats vhdl_END arch_body_2 vhdl_SEMICOLON
+		arch_start arch_decltve_part vhdl_BEGIN concurrent_stats vhdl_END arch_body_2 vhdl_SEMICOLON
 		{ if ($2) $1->addStmtp($2);
 		  if ($4) $1->addStmtp($4);
 		  SYMP->popScope ($1); }
@@ -3472,7 +3475,7 @@ arch_start<vhdlarchp>:
 		  SYMP->pushNew($$); }
 	;
 
-arch_body_declarations<nodep>:
+arch_decltve_part<nodep>:
 	    { $$ = NULL; }
 	|   arch_body_1
 	    { $$ = $1; }
@@ -3485,7 +3488,7 @@ arch_body_1<nodep>:
 		{ $$ = $1->addNextNull($2); }
 	;
 
-arch_body_2:
+arch_body_2: // Nothing to return here
 	|	vhdl_ARCHITECTURE
 	| 	vhdl_ARCHITECTURE vhdl_IDENTIFIER
 	|	vhdl_IDENTIFIER
@@ -3510,32 +3513,34 @@ config_decl_2:
 	|	vhdl_IDENTIFIER
 	;
 
+// Package declarations 2.5 LRM
 package_decl<nodep>:
-		vhdl_PACKAGE vhdl_IDENTIFIER vhdl_IS package_decl_1 vhdl_END package_decl_2 vhdl_SEMICOLON
+		vhdl_PACKAGE vhdl_IDENTIFIER vhdl_IS package_decl_part vhdl_END package_decl_2 vhdl_SEMICOLON
 		{ $$ = new AstPackage ($1, *$2); $$->addNextNull ($4); }
 	;
 
-package_decl_1<nodep>:
+package_decl_part<nodep>:
 		{ $$ = NULL; }
-	|	package_decl_1 package_decltve_item
+	|	package_decl_part package_decltve_item
 		{ $$ = $1->addNext ($2); }
 	;
 
-package_decl_2:
+package_decl_2: // Nothing to return here
 	|	vhdl_PACKAGE
 	|	vhdl_IDENTIFIER
 	|	vhdl_PACKAGE vhdl_IDENTIFIER
 	;
 
+// Package bodies 2.6 LRM
 package_body:
-		vhdl_PACKAGE vhdl_BODY vhdl_IDENTIFIER vhdl_IS package_body_1 vhdl_END package_body_2 vhdl_SEMICOLON
+		vhdl_PACKAGE vhdl_BODY vhdl_IDENTIFIER vhdl_IS package_body_decltve_part vhdl_END package_body_2 vhdl_SEMICOLON
 	;
 
-package_body_1:
-	|	package_body_1 package_body_decltve_item
+package_body_decltve_part:
+	|	package_body_decltve_part package_body_decltve_item
 	;
 
-package_body_2:
+package_body_2: // Nothing to return here
 	|	vhdl_IDENTIFIER
 	|	vhdl_PACKAGE vhdl_BODY
 	|	vhdl_PACKAGE vhdl_BODY vhdl_IDENTIFIER
@@ -3640,6 +3645,7 @@ config_decltve_item<nodep>:
 /*------------------------------------------
 --  Subprograms
 --------------------------------------------*/
+// Subprogram declarations 2.1 LRM
 
 subprog_decl<nodep>:
 		subprog_spec vhdl_SEMICOLON
@@ -3647,14 +3653,14 @@ subprog_decl<nodep>:
 	;
 
 subprog_spec<ftaskp>:
-		vhdl_PROCEDURE vhdl_IDENTIFIER subprog_spec_1
+		vhdl_PROCEDURE designator subprog_param_list
 		{ $$ = new AstTask ($<fl>1, *$<strp>1, NULL);
 		  SYMP->pushNewUnder($$, NULL);
 		  $$->addStmtsp($3);
 		  $$->prototype(true);
 		  SYMP->popScope($$);
 		}
-	|	vhdl_FUNCTION vhdl_IDENTIFIER subprog_spec_2 vhdl_RETURN subtype_indic
+	|	vhdl_FUNCTION designator subprog_param_list vhdl_RETURN subtype_indic
 		{ $$ = new AstFunc ($1, *$<strp>1, NULL, $5);
 		  SYMP->pushNewUnder($$, NULL);
 		  $$->addStmtsp($3);
@@ -3663,29 +3669,27 @@ subprog_spec<ftaskp>:
 		}
 	;
 
-subprog_spec_1<nodep>:
+subprog_param_list<nodep>:
 		{ $$ = NULL; }
-	|	interf_list
-		{ $$ = $1; }
-	;
-
-subprog_spec_2<nodep>:
-		{ $$ = NULL; }
-	|	interf_list
+	|	formal_param_list
 		{ $$ = $1; }
 	;
 
 subprog_body<ftaskp>:
-		subprog_spec vhdl_IS subprog_body_1 vhdl_BEGIN seq_stats vhdl_END subprog_body_2 vhdl_SEMICOLON
+		subprog_spec vhdl_IS subprog_decltve_part vhdl_BEGIN seq_stats vhdl_END subprog_body_2 vhdl_SEMICOLON
 	;
 
-subprog_body_1<nodep>:
+subprog_decltve_part<nodep>:
 		{ $$ = NULL; }
-	|	subprog_body_1 subprog_decltve_item
+	|	subprog_decltve_part subprog_decltve_item
 		{ $$ = $1->addNext($2); }
 	;
 
-subprog_body_2:
+subprog_body_2: // Nothing to return here
+	|	vhdl_FUNCTION 
+	| 	vhdl_PROCEDURE
+	|	vhdl_FUNCTION designator 
+	| 	vhdl_PROCEDURE designator
 	|	designator
 	;
 
@@ -3693,15 +3697,15 @@ subprog_body_2:
 --  Interface Lists and Associaton Lists
 ----------------------------------------------------*/
 
-interf_list<nodep>:
-		vhdl_LEFTPAREN interf_item vhdl_RIGHTPAREN
+formal_param_list<nodep>:
+		vhdl_LEFTPAREN param_interf_list vhdl_RIGHTPAREN
 		{ $$ = $2; }
 	;
 
-interf_item<nodep>:
+param_interf_list<nodep>:
 		interf_element
 		{ $$ = $1; }
-	| 	interf_item vhdl_SEMICOLON interf_element
+	| 	param_interf_list vhdl_SEMICOLON interf_element
 		{ $$ = $1->addNextNull ($3); }
 	;
 
@@ -3712,7 +3716,7 @@ interf_element<nodep>:
 		{$$ = $2; $$->addNextNull(VARDONEP($$,NULL,NULL)); SYMP->reinsert ($$); }
 	;
 
-generic_interf_list<nodep>:
+generic_formal_param_list<nodep>:
 		vhdl_LEFTPAREN generic_interf_item vhdl_RIGHTPAREN
 		{ $$ = $2; }
 	;
@@ -3940,7 +3944,7 @@ sel_name<nodep>:
 
 suffix<nodep>:
 	designator
-	{ $$ = $1; }
+	{ $$ = new AstText ($<fl>1, *$1); }
 |	vhdl_CHARACTERLIT
 	{ $$ = NULL; }
 |	vhdl_ALL
@@ -4345,11 +4349,11 @@ block_stat_1:
 	;
 
 block_stat_2:
-	|	vhdl_GENERIC interf_list vhdl_SEMICOLON block_stat_8
+	|	vhdl_GENERIC formal_param_list vhdl_SEMICOLON block_stat_8
 	;
 
 block_stat_3:
-	|	vhdl_PORT interf_list vhdl_SEMICOLON block_stat_7
+	|	vhdl_PORT formal_param_list vhdl_SEMICOLON block_stat_7
 	;
 
 block_stat_4:
@@ -4690,11 +4694,11 @@ comp_decl:
 	;
 
 comp_decl_1:
-	|	vhdl_GENERIC interf_list vhdl_SEMICOLON
+	|	vhdl_GENERIC formal_param_list vhdl_SEMICOLON
 	;
 
 comp_decl_2:
-	|	vhdl_PORT interf_list vhdl_SEMICOLON
+	|	vhdl_PORT formal_param_list vhdl_SEMICOLON
 	;
 
 block_config:

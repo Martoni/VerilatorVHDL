@@ -149,15 +149,15 @@ word	[a-zA-Z0-9_]+
 
 upper_case_letter 	  [A-Z]
 digit 			  [0-9]
-special_character   	  [\#\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\_\|]
+special_character   	  [\"\#\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\_\|]
 space_character 	  [ \t]
 format_VHDL_effector	  [\t\v\r\l\f]
 end_of_line		  \n
 lower_case_letter 	  [a-z]
 other_special_character   [\!\$\@\?\[\\\]\^\`\{\}\~]
 
-graphic_character	  ({basic_graphic_character}|{lower_case_letter}|{other_special_character})
 basic_graphic_character	  ({upper_case_letter}|{digit}|{special_character}|{space_character})
+graphic_character	  ({basic_graphic_character}|{lower_case_letter}|{other_special_character})
 letter		   	  ({upper_case_letter}|{lower_case_letter})
 letter_or_digit	   	  ({letter}|{digit})
 decimal_literal	   	  {integer}(\.{integer})?({exponent})?
