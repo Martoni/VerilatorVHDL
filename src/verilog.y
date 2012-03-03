@@ -3347,7 +3347,7 @@ enumeration_literal:
 	|	vhdl_IDENTIFIER
 	;
 
-idf_list:
+idf_list: // Put in a global scoped list and is used by the var declarations
 		vhdl_IDENTIFIER
         { GRAMMARP->m_varIdentifiers.push_back ($1); }
 	|	idf_list vhdl_COMMA vhdl_IDENTIFIER
@@ -3493,7 +3493,6 @@ arch_body_2: // Nothing to return here
 	| 	vhdl_ARCHITECTURE vhdl_IDENTIFIER
 	|	vhdl_IDENTIFIER
 	;
-
 
 config_decl:
 		config_start config_decl_1 block_config vhdl_END config_decl_2 vhdl_SEMICOLON
@@ -3828,7 +3827,7 @@ gen_association_element<nodep>:
 
 mark<nodep>:
 	vhdl_IDENTIFIER
-	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
+	{ $$ = new AstText ($<fl>1, *$1); }
 |	sel_name
 	{ $$ = NULL; } //TODO: FIX THIS
 ;
@@ -3926,7 +3925,7 @@ primary<nodep>:
 
 name<nodep>:
 	mark
-	{ $$ = $1 }
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, $1); }
 |	vhdl_STRINGLIT
 	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
 |	attribute_name
@@ -4015,28 +4014,37 @@ choice<nodep>:
 --	Type Declarations
 ----------------------------------------------------*/
 
-type_decl:
+type_decl<nodep>:
 	vhdl_TYPE vhdl_IDENTIFIER type_decl_1 vhdl_SEMICOLON
+	{ $$ = new AstTypedef ($1, *$2, $3); }
 	;
 
-type_decl_1:
+type_decl_1<dtypep>:
+	{ $$ = NULL; }
 |	vhdl_IS type_definition
+	{ $$ = $2; }
 	;
 
-type_definition:
+type_definition<dtypep>:
 	enumeration_type_definition
+	{ $$ = $1; }
 |	range_constraint
+	{ $$ = NULL; }
 |	unconstrained_array_definition
+	{ $$ = NULL; }
 |	constrained_array_definition
+	{ $$ = NULL; }
 |	record_type_definition
+	{ $$ = NULL; }
 /* UNSUP
 |	access_type_definition
 |	file_type_definition
 */
 ;
 
-enumeration_type_definition:
+enumeration_type_definition<dtypep>:
 	vhdl_LEFTPAREN enumeration_type_definition_1 vhdl_RIGHTPAREN
+	{ $$ = NULL; }
 ;
 
 enumeration_type_definition_1:
@@ -4129,13 +4137,16 @@ range_constraint:
 		vhdl_RANGE range_spec
 	;
 
-index_constraint:
+index_constraint<nodep>:
 		vhdl_LEFTPAREN index_constraint_1 vhdl_RIGHTPAREN
+		{ $$ = $2; }
 	;
 
-index_constraint_1:
+index_constraint_1<nodep>:
 		discrete_range
+		{ $$ = $1; }
 	|	index_constraint_1 vhdl_COMMA discrete_range
+		{ $$ = $1->addNext ($3); }
 	;
 
 discrete_range<nodep>:
@@ -4402,10 +4413,8 @@ concurrent_assertion_stat<nodep>:
 concurrent_procedure_call<nodep>:
 		vhdl_IDENTIFIER vhdl_COLON procedure_call_stat
 		{ $$ = $3; }
-/* UNSUP
 	|	procedure_call_stat
 		{ $$ = $1; }
-*/
 	;
 
 concurrent_signal_assign_stat<nodep>:
@@ -4656,8 +4665,14 @@ null_stat: // NULL statement handled at seq_stat
 	;
 
 procedure_call_stat<nodep>:
-		name vhdl_SEMICOLON
+		name actual_param_part vhdl_SEMICOLON
 		{ $$ = NULL; }
+	;
+
+actual_param_part<nodep>:
+		{ $$ = NULL; }
+	|	association_list
+		{ $$ = $1; }
 	;
 
 return_stat<nodep>:
