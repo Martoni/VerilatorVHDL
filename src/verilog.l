@@ -1368,6 +1368,7 @@ int V3ParseImp::lexToken() {
 	    	else if (scp->castPort())		token = vhdl_ID_VAR;
 	    	else if (scp->castTask()) 		token = vhdl_ID_PROCEDURE;
 			else if (scp->castTypedef())	token = vhdl_ID_TYPE;
+			else if (scp->castVhdlEntity())	token = vhdl_ID_ENTITY;
 		}
     }
 

@@ -724,6 +724,7 @@ class AstSenTree;
 %token<fl> vhdl_ID_VAR
 %token<fl> vhdl_ID_FUNCTION
 %token<fl> vhdl_ID_PROCEDURE
+%token<strp> vhdl_ID_ENTITY
 
 %start source_text
 
@@ -3459,9 +3460,9 @@ entity_statement_part<nodep>:
 	;
 
 entity_decl_finish: // Nothing to return here
-	|	vhdl_IDENTIFIER
+	|	vhdl_ID_ENTITY
 	|	vhdl_ENTITY
-	|	vhdl_ENTITY vhdl_IDENTIFIER
+	|	vhdl_ENTITY vhdl_ID_ENTITY
 	;
 
 // Architecture bodies 1.2 LRM
@@ -3473,7 +3474,7 @@ arch_body<modulep>:
 	;
 
 arch_start<vhdlarchp>:
-		vhdl_ARCHITECTURE vhdl_IDENTIFIER vhdl_OF vhdl_IDENTIFIER vhdl_IS
+		vhdl_ARCHITECTURE vhdl_IDENTIFIER vhdl_OF vhdl_ID_ENTITY vhdl_IS
 		{ $$ = new AstVhdlArchitecture($1, *$2, *$4);
 		  GRAMMARP->m_vhdl_architecturep = $$;
 		  PARSEP->rootp()->addVhdlArchitecturep($$);
