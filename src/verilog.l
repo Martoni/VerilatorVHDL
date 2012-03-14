@@ -1346,6 +1346,32 @@ int V3ParseImp::lexToken() {
 	    token = yaID__ETC;
 	}
     }
+
+	// VHDL IDs handling
+	if (token == vhdl_IDENTIFIER) {
+		AstNode* scp;
+		if (V3SymTable* look_underp = SYMP->nextId()) {
+		    if (debugFlex()) { cout<<"   lexToken: next id lookup forced under "<<look_underp<<endl; }
+		    scp = look_underp->findIdUpward(*(yylval.strp));
+	    	// "consume" it.  Must set again if want another token under temp scope
+	    	SYMP->nextId(NULL);
+		} else {
+	    	UINFO(7,"   lexToken: find upward "<<SYMP->symCurrentp()<<" for '"<<*(yylval.strp)<<"'"<<endl);
+	    	//if (debug()>=9) SYMP->symCurrentp()->dump(cout,"     -findtree: ",true);
+	    	scp = SYMP->symCurrentp()->findIdUpward(*(yylval.strp));
+		}
+		yylval.scp = scp;
+		if (scp) {
+	    	UINFO(7,"   lexToken: Found "<<scp<<endl);
+	    	if (scp->castFunc())			token = vhdl_ID_FUNCTION;
+	    	else if (scp->castVar())		token = vhdl_ID_VAR;
+	    	else if (scp->castPort())		token = vhdl_ID_VAR;
+	    	else if (scp->castTask()) 		token = vhdl_ID_PROCEDURE;
+			else if (scp->castTypedef())	token = vhdl_ID_TYPE;
+		}
+    }
+
+
     return token;
 }
 

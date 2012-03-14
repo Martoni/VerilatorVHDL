@@ -720,6 +720,11 @@ class AstSenTree;
 %token<fl> vhdl_INTEGER
 %token<fl> vhdl_FALSE
 
+%token<fl> vhdl_ID_TYPE
+%token<fl> vhdl_ID_VAR
+%token<fl> vhdl_ID_FUNCTION
+%token<fl> vhdl_ID_PROCEDURE
+
 %start source_text
 
 %%
