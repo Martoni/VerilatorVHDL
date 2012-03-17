@@ -232,6 +232,9 @@ class V3ParseImp {
     deque<FileLine>  m_lintState;	// Current lint state for save/restore
     deque<string> m_ppBuffers;		// Preprocessor->lex buffer of characters to process
 
+	V3SymTable* m_currentEntitySyms;  // Entity linked to the currently parsed architecture
+
+
 public:
     // Note these are an exception to using the filename as the debug type
     static int debugBison() {
@@ -293,6 +296,21 @@ public:
 	return nump;
     }
 
+	void enterArchitecture (string entityName) {
+		AstVhdlEntity* currentEntity = m_sym.symCurrentp()->findIdUpward(entityName)->castVhdlEntity();
+		m_currentEntitySyms = m_sym.findNewTable (currentEntity, NULL);
+		cout << "Entering Architecture of entity " << entityName << endl;
+	}
+
+	void exitArchitecture (void) {
+		m_currentEntitySyms = NULL;
+		cout << "Exiting Architecture" << endl;
+	}
+
+	V3SymTable* entitySymsp (void) {
+		return m_currentEntitySyms;
+	}
+
     V3Number* newVhdlBitNumber (FileLine* fl, const char* text);
     V3Number* newVhdlBitStringNumber (FileLine* fl, const char* text);
 
@@ -331,6 +349,7 @@ public:
 	m_lastVerilogState = stateVerilogRecent();
 	m_ahead = false;
 	m_aheadToken = 0;
+	m_currentEntitySyms = NULL;
     }
     ~V3ParseImp();
     void parserClear();

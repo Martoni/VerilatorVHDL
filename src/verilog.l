@@ -1039,7 +1039,7 @@ base_specifier	  	  (B|b|O|o|X|x)
   "`begin_keywords"[ \t]*\"1800-2009\"		{ yy_push_state(S09); PARSEP->pushBeginKeywords(YY_START); }
   "`begin_keywords"[ \t]*\"1800+VAMS\"		{ yy_push_state(SA9); PARSEP->pushBeginKeywords(YY_START); }
   "`begin_keywords"[ \t]*\"1076-1993\"		{ yy_push_state(VHDL93); PARSEP->pushBeginKeywords(YY_START); }
-  "--begin_keywords"[ \t]*\"1076-1993\"		{ yy_push_state(VHDL93); PARSEP->pushBeginKeywords(YY_START); } // VHDL
+  "--"[\t ]*"begin_keywords"[ \t]*\"1076-1993\"		{ yy_push_state(VHDL93); PARSEP->pushBeginKeywords(YY_START); } // VHDL
   "`end_keywords"				{ yy_pop_state(); if (!PARSEP->popBeginKeywords()) yyerrorf("`end_keywords when not inside `begin_keywords block"); }
 
   /* Verilator */
@@ -1073,23 +1073,23 @@ base_specifier	  	  (B|b|O|o|X|x)
   /* Verilator specific input tokens */
   "`line"{ws}+[^\n\r]*{crnl}		{ PARSEP->ppline(yytext); } // only one supporting ` because of preprocessor
 
-  "--begin_keywords"[ \t]*\"1364-1995\"		{ yy_push_state(V95); PARSEP->pushBeginKeywords(YY_START); }
-  "--begin_keywords"[ \t]*\"1364-2001\"		{ yy_push_state(V01); PARSEP->pushBeginKeywords(YY_START); }
-  "--begin_keywords"[ \t]*\"1364-2001-noconfig\"	{ yy_push_state(V01); PARSEP->pushBeginKeywords(YY_START); }
-  "--begin_keywords"[ \t]*\"1364-2005\"		{ yy_push_state(V05); PARSEP->pushBeginKeywords(YY_START); }
-  "--begin_keywords"[ \t]*\"1800-2005\"		{ yy_push_state(S05); PARSEP->pushBeginKeywords(YY_START); }
-  "--begin_keywords"[ \t]*\"1800-2009\"		{ yy_push_state(S09); PARSEP->pushBeginKeywords(YY_START); }
-  "--begin_keywords"[ \t]*\"1076-1993\"		{ yy_push_state(VHDL93); PARSEP->pushBeginKeywords(YY_START); }
-  "--end_keywords"							{ yy_pop_state(); if (!PARSEP->popBeginKeywords()) yyerrorf("--end_keywords when not inside --begin_keywords block"); }
+  "--"[ \t]*"begin_keywords"[ \t]*\"1364-1995\"		{ yy_push_state(V95); PARSEP->pushBeginKeywords(YY_START); }
+  "--"[ \t]*"begin_keywords"[ \t]*\"1364-2001\"		{ yy_push_state(V01); PARSEP->pushBeginKeywords(YY_START); }
+  "--"[ \t]*"begin_keywords"[ \t]*\"1364-2001-noconfig\"	{ yy_push_state(V01); PARSEP->pushBeginKeywords(YY_START); }
+  "--"[ \t]*"begin_keywords"[ \t]*\"1364-2005\"		{ yy_push_state(V05); PARSEP->pushBeginKeywords(YY_START); }
+  "--"[ \t]*"begin_keywords"[ \t]*\"1800-2005\"		{ yy_push_state(S05); PARSEP->pushBeginKeywords(YY_START); }
+  "--"[ \t]*"begin_keywords"[ \t]*\"1800-2009\"		{ yy_push_state(S09); PARSEP->pushBeginKeywords(YY_START); }
+  "--"[ \t]*"begin_keywords"[ \t]*\"1076-1993\"		{ yy_push_state(VHDL93); PARSEP->pushBeginKeywords(YY_START); }
+  "--"[ \t]*"end_keywords"							{ yy_pop_state(); if (!PARSEP->popBeginKeywords()) yyerrorf("--end_keywords when not inside --begin_keywords block"); }
 
-  "--verilator"[ \t]*"tracing_off"			{PARSEP->fileline()->tracingOn(false); }
-  "--verilator"[ \t]*"tracing_on"			{PARSEP->fileline()->tracingOn(true); }
-  "--verilator"[ \t]*"coverage_off"			{PARSEP->fileline()->coverageOn(false); }
-  "--verilator"[ \t]*"coverage_on"			{PARSEP->fileline()->coverageOn(true); }
-  "--verilator"[ \t]*"lint_off"[^*]*		{PARSEP->verilatorCmtLint(yytext, true); }
-  "--verilator"[ \t]*"lint_on"[^*]*			{PARSEP->verilatorCmtLint(yytext, false); }
-  "--verilator"[ \t]*"lint_restore"			{PARSEP->verilatorCmtLintRestore(); }
-  "--verilator"[ \t]*"lint_save"			{PARSEP->verilatorCmtLintSave(); }
+  "--"[ \t]*"verilator"[ \t]*"tracing_off"			{PARSEP->fileline()->tracingOn(false); }
+  "--"[ \t]*"verilator"[ \t]*"tracing_on"			{PARSEP->fileline()->tracingOn(true); }
+  "--"[ \t]*"verilator"[ \t]*"coverage_off"			{PARSEP->fileline()->coverageOn(false); }
+  "--"[ \t]*"verilator"[ \t]*"coverage_on"			{PARSEP->fileline()->coverageOn(true); }
+  "--"[ \t]*"verilator"[ \t]*"lint_off"[^*]*		{PARSEP->verilatorCmtLint(yytext, true); }
+  "--"[ \t]*"verilator"[ \t]*"lint_on"[^*]*			{PARSEP->verilatorCmtLint(yytext, false); }
+  "--"[ \t]*"verilator"[ \t]*"lint_restore"			{PARSEP->verilatorCmtLintRestore(); }
+  "--"[ \t]*"verilator"[ \t]*"lint_save"			{PARSEP->verilatorCmtLintSave(); }
 
   /* VHDL tokens */
 
@@ -1350,16 +1350,27 @@ int V3ParseImp::lexToken() {
 	// VHDL IDs handling
 	if (token == vhdl_IDENTIFIER) {
 		AstNode* scp;
+
+		AstNode* scp_entity;
+		V3SymTable* entitytblp = PARSEP->entitySymsp();
+		if (entitytblp) {
+		    if (debugFlex()) { cout<<"   lexToken: next id lookup forced under entity "<< entitytblp <<endl; }
+			scp_entity = entitytblp->findIdUpward(*(yylval.strp));
+		}
+
 		if (V3SymTable* look_underp = SYMP->nextId()) {
 		    if (debugFlex()) { cout<<"   lexToken: next id lookup forced under "<<look_underp<<endl; }
 		    scp = look_underp->findIdUpward(*(yylval.strp));
 	    	// "consume" it.  Must set again if want another token under temp scope
 	    	SYMP->nextId(NULL);
+		} else if (entitytblp && scp_entity) {
+			scp = scp_entity;
 		} else {
 	    	UINFO(7,"   lexToken: find upward "<<SYMP->symCurrentp()<<" for '"<<*(yylval.strp)<<"'"<<endl);
 	    	//if (debug()>=9) SYMP->symCurrentp()->dump(cout,"     -findtree: ",true);
 	    	scp = SYMP->symCurrentp()->findIdUpward(*(yylval.strp));
 		}
+
 		yylval.scp = scp;
 		if (scp) {
 	    	UINFO(7,"   lexToken: Found "<<scp<<endl);

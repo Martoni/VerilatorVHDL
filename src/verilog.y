@@ -720,10 +720,10 @@ class AstSenTree;
 %token<fl> vhdl_INTEGER
 %token<fl> vhdl_FALSE
 
-%token<fl> vhdl_ID_TYPE
-%token<fl> vhdl_ID_VAR
-%token<fl> vhdl_ID_FUNCTION
-%token<fl> vhdl_ID_PROCEDURE
+%token<strp> vhdl_ID_TYPE
+%token<strp> vhdl_ID_VAR
+%token<strp> vhdl_ID_FUNCTION
+%token<strp> vhdl_ID_PROCEDURE
 %token<strp> vhdl_ID_ENTITY
 
 %start source_text
@@ -3470,6 +3470,7 @@ arch_body<modulep>:
 		arch_start arch_decltve_part vhdl_BEGIN concurrent_stats vhdl_END arch_body_2 vhdl_SEMICOLON
 		{ if ($2) $1->addStmtp($2);
 		  if ($4) $1->addStmtp($4);
+		  PARSEP->exitArchitecture();
 		  SYMP->popScope ($1); }
 	;
 
@@ -3478,6 +3479,7 @@ arch_start<vhdlarchp>:
 		{ $$ = new AstVhdlArchitecture($1, *$2, *$4);
 		  GRAMMARP->m_vhdl_architecturep = $$;
 		  PARSEP->rootp()->addVhdlArchitecturep($$);
+		  PARSEP->enterArchitecture (*$4);
 		  SYMP->pushNew($$); }
 	;
 
