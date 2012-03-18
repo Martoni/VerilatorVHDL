@@ -3834,7 +3834,7 @@ gen_association_element<nodep>:
 ----------------------------------------------------*/
 
 mark<nodep>:
-	vhdl_IDENTIFIER
+	vhdl_ID_TYPE
 	{ $$ = new AstText ($<fl>1, *$1); }
 |	sel_name
 	{ $$ = NULL; } //TODO: FIX THIS
@@ -3932,10 +3932,12 @@ primary<nodep>:
 ;
 
 name<nodep>:
-	mark
-	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, $1); }
+	vhdl_ID_VAR
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, new AstText($<fl>1, *$1)); }
+/* UNSUP
 |	vhdl_STRINGLIT
 	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
+*/
 |	attribute_name
 	{ $$ = $1; }
 /*
