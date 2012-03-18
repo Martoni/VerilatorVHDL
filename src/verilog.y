@@ -4109,7 +4109,7 @@ subtype_indic<dtypep>:
 
 internal_type_atomic<bdtypep>:
 	vhdl_BIT
-	{ $$ = new AstBasicDType($1,AstBasicDTypeKwd::BIT,signedst_NOP); }
+	{ $$ = new AstBasicDType($1,AstBasicDTypeKwd::BIT,signedst_NOSIGNED); }
 	| vhdl_INTEGER
 	{ $$ = new AstBasicDType($1,AstBasicDTypeKwd::INTEGER,signedst_SIGNED);}
 	;

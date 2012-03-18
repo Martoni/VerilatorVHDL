@@ -1354,7 +1354,6 @@ int V3ParseImp::lexToken() {
 		AstNode* scp_entity;
 		V3SymTable* entitytblp = PARSEP->entitySymsp();
 		if (entitytblp) {
-		    if (debugFlex()) { cout<<"   lexToken: next id lookup forced under entity "<< entitytblp <<endl; }
 			scp_entity = entitytblp->findIdUpward(*(yylval.strp));
 		}
 
@@ -1363,7 +1362,8 @@ int V3ParseImp::lexToken() {
 		    scp = look_underp->findIdUpward(*(yylval.strp));
 	    	// "consume" it.  Must set again if want another token under temp scope
 	    	SYMP->nextId(NULL);
-		} else if (entitytblp && scp_entity) {
+		} else if (entitytblp && scp_entity) { // if not local check under entity
+		    if (debugFlex()) { cout<<"   lexToken: next id lookup forced under entity "<< entitytblp <<endl; }
 			scp = scp_entity;
 		} else {
 	    	UINFO(7,"   lexToken: find upward "<<SYMP->symCurrentp()<<" for '"<<*(yylval.strp)<<"'"<<endl);
