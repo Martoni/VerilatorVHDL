@@ -3566,7 +3566,7 @@ common_decltve_item<nodep>:
 	|	alias_decl
 		{ $$ = NULL; }
 	|	subprog_decl
-		{ $$ = NULL; }
+		{ $$ = $1; }
 	|	use_clause
 		{ $$ = NULL; }
 	;
@@ -3575,7 +3575,7 @@ entity_decltve_item<nodep>:
 		common_decltve_item
 		{ $$ = $1; }
 	|	subprog_body
-		{ $$ = NULL; }
+		{ $$ = $1; }
 	|	attribute_decl
 		{ $$ = NULL; }
 	|	attribute_spec
@@ -3613,14 +3613,14 @@ package_body_decltve_item<nodep>:
 		common_decltve_item
 		{ $$ = $1; }
 	|	subprog_body
-		{ $$ = NULL; }
+		{ $$ = $1; }
 	;
 
 subprog_decltve_item<nodep>:
 		common_decltve_item
 		{ $$ = $1; }
 	|	subprog_body
-		{ $$ = NULL; }
+		{ $$ = $1; }
 	|	attribute_decl
 		{ $$ = NULL; }
 	|	attribute_spec
@@ -3633,7 +3633,7 @@ procs_decltve_item<nodep>:
 		common_decltve_item
 		{ $$ = $1; }
 	|	subprog_body
-		{ $$ = NULL; }
+		{ $$ = $1; }
 	|	attribute_decl
 		{ $$ = NULL; }
 	|	attribute_spec
@@ -3654,24 +3654,30 @@ config_decltve_item<nodep>:
 --------------------------------------------*/
 // Subprogram declarations 2.1 LRM
 
-subprog_decl<nodep>:
-		subprog_spec vhdl_SEMICOLON
+subprog_decl<ftaskp>:
+		procedure_decl
+		{ $$ = $1; }
+	|	func_decl
 		{ $$ = $1; }
 	;
 
-subprog_spec<ftaskp>:
+subprog_body<ftaskp>:
+		procedure_body
+		{ $$ = $1; }
+	|	func_body
+		{ $$ = $1; }
+	;
+
+procedure_decl<ftaskp>:
+		procedure_spec vhdl_SEMICOLON
+		{ $$ = $1; $$->prototype(true); }
+	;
+
+procedure_spec<ftaskp>:
 		vhdl_PROCEDURE designator subprog_param_list
 		{ $$ = new AstTask ($<fl>1, *$<strp>1, NULL);
 		  SYMP->pushNewUnder($$, NULL);
 		  $$->addStmtsp($3);
-		  $$->prototype(true);
-		  SYMP->popScope($$);
-		}
-	|	vhdl_FUNCTION designator subprog_param_list vhdl_RETURN subtype_indic
-		{ $$ = new AstFunc ($1, *$<strp>1, NULL, $5);
-		  SYMP->pushNewUnder($$, NULL);
-		  $$->addStmtsp($3);
-		  $$->prototype(true);
 		  SYMP->popScope($$);
 		}
 	;
@@ -3682,8 +3688,12 @@ subprog_param_list<nodep>:
 		{ $$ = $1; }
 	;
 
-subprog_body<ftaskp>:
-		subprog_spec vhdl_IS subprog_decltve_part vhdl_BEGIN seq_stats vhdl_END subprog_body_2 vhdl_SEMICOLON
+procedure_body<ftaskp>:
+		procedure_spec vhdl_IS subprog_decltve_part vhdl_BEGIN seq_stats vhdl_END procedure_body_2 vhdl_SEMICOLON
+		{ $$ = $1; $$->prototype(false); 
+		  $$->addStmtsp($3);
+		  $$->addStmtsp($5);
+		}
 	;
 
 subprog_decltve_part<nodep>:
@@ -3692,11 +3702,38 @@ subprog_decltve_part<nodep>:
 		{ $$ = $1->addNext($2); }
 	;
 
-subprog_body_2: // Nothing to return here
-	|	vhdl_FUNCTION 
+procedure_body_2: // Nothing to return here
 	| 	vhdl_PROCEDURE
-	|	vhdl_FUNCTION designator 
 	| 	vhdl_PROCEDURE designator
+	|	designator
+	;
+
+func_decl<ftaskp>:
+		func_spec vhdl_SEMICOLON
+		{ $$ = $1; $$->prototype(true); }
+	;
+
+func_spec<ftaskp>:
+		vhdl_FUNCTION designator subprog_param_list vhdl_RETURN subtype_indic
+		{ $$ = new AstFunc ($1, *$<strp>1, NULL, $5);
+		  SYMP->pushNewUnder($$, NULL);
+		  $$->addStmtsp($3);
+		  $$->prototype(true);
+		  SYMP->popScope($$);
+		}
+	;
+
+func_body<ftaskp>:
+		func_spec vhdl_IS subprog_decltve_part vhdl_BEGIN seq_stats vhdl_END func_body_2 vhdl_SEMICOLON
+		{ $$ = $1; $$->prototype(false); 
+		  $$->addStmtsp($3);
+		  $$->addStmtsp($5);
+		}
+	;
+
+func_body_2: // Nothing to return here
+	|	vhdl_FUNCTION 
+	|	vhdl_FUNCTION designator 
 	|	designator
 	;
 
@@ -3927,6 +3964,8 @@ primary<nodep>:
 /*
 |	aggregate
 |	qualified_expr*/
+|	function_call_stat
+	{ $$ = $1; }
 |	vhdl_LEFTPAREN vhdl_expr vhdl_RIGHTPAREN
 	{ $$ = $2; }
 ;
@@ -3939,6 +3978,32 @@ name<nodep>:
 	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
 */
 |	attribute_name
+	{ $$ = $1; }
+/*
+|	ifts_name */
+;
+
+procedure_name<nodep>:
+	vhdl_ID_PROCEDURE
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_TASK, new AstText($<fl>1, *$1)); }
+/* UNSUP
+|	vhdl_STRINGLIT
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
+*/
+|	procedure_attribute_name
+	{ $$ = $1; }
+/*
+|	ifts_name */
+;
+
+function_name<nodep>:
+	vhdl_ID_FUNCTION
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_FUNC, new AstText($<fl>1, *$1)); }
+/* UNSUP
+|	vhdl_STRINGLIT
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, (new AstText ($<fl>1, *$1))); }
+*/
+|	function_attribute_name
 	{ $$ = $1; }
 /*
 |	ifts_name */
@@ -3973,6 +4038,19 @@ attribute_name<nodep>:
 	{ $$ = new AstVhdlQuotedAttribute ($2, $1, "range"); }
 ;
 
+function_attribute_name<nodep>:
+	function_name vhdl_APOSTROPHE vhdl_IDENTIFIER
+	{ $$ = new AstVhdlQuotedAttribute ($2, $1, *$3); }
+|	function_name vhdl_APOSTROPHE vhdl_RANGE
+	{ $$ = new AstVhdlQuotedAttribute ($2, $1, "range"); }
+;
+
+procedure_attribute_name<nodep>:
+	procedure_name vhdl_APOSTROPHE vhdl_IDENTIFIER
+	{ $$ = new AstVhdlQuotedAttribute ($2, $1, *$3); }
+|	procedure_name vhdl_APOSTROPHE vhdl_RANGE
+	{ $$ = new AstVhdlQuotedAttribute ($2, $1, "range"); }
+;
 /* UNSUP
 aggregate:
 	element_association_list2 vhdl_RIGHTPAREN
@@ -4348,8 +4426,8 @@ concurrent_stat<nodep>:
 		{ $$ = $1; } */
 		concurrent_assertion_stat
 		{ $$ = $1; }
-/*	|	concurrent_procedure_call
-		{ $$ = $1; } */
+	|	concurrent_procedure_call
+		{ $$ = $1; }
 	|	concurrent_signal_assign_stat
 		{ $$ = $1; } // readd OR at the beginning of rule
 	|	comp_inst_stat
@@ -4514,6 +4592,7 @@ procs_stat1_2<nodep>:
 	;
 
 procs_stat1_1<sentreep>:
+		{ $$ = NULL; }
 	|	vhdl_LEFTPAREN sensitivity_list vhdl_RIGHTPAREN
 		{ $$ = new AstSenTree ($1, $2); }
 	;
@@ -4675,8 +4754,13 @@ null_stat: // NULL statement handled at seq_stat
 	;
 
 procedure_call_stat<nodep>:
-		name actual_param_part vhdl_SEMICOLON
-		{ $$ = NULL; }
+		procedure_name actual_param_part vhdl_SEMICOLON
+		{ $$ = new AstTaskRef ($<fl>1, $1->castParseRef(), $2); }
+	;
+
+function_call_stat<nodep>:
+		function_name actual_param_part vhdl_SEMICOLON
+		{ $$ = new AstFuncRef ($<fl>1, $1->castParseRef(), $2); }
 	;
 
 actual_param_part<nodep>:
