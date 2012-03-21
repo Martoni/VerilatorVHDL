@@ -3581,14 +3581,17 @@ entity_decltve_item<nodep>:
 	|	attribute_spec
 		{ $$ = NULL; }
 	|	signal_decl
-		{ $$ = NULL; }
+		{ $$ = $1; }
 	;
 
 block_decltve_item<nodep>:
 		common_decltve_item
 		{ $$ = $1; }
-/*	|	subprog_body
+	|	subprog_body
+		{ $$ = $1; }
 	|	comp_decl
+		{ $$ = $1; }
+	/*
 	|	attribute_decl
 	|	attribute_spec
 	|	config_spec */
@@ -3600,13 +3603,13 @@ package_decltve_item<nodep>:
 		common_decltve_item
 		{ $$ = $1; }
 	|	comp_decl
-		{ $$ = NULL; }
+		{ $$ = $1; }
 	|	attribute_decl
 		{ $$ = NULL; }
 	|	attribute_spec
 		{ $$ = NULL; }
 	|	signal_decl
-		{ $$ = NULL; }
+		{ $$ = $1; }
 	;
 
 package_body_decltve_item<nodep>:
@@ -4798,16 +4801,25 @@ variable_assign_stat<nodep>:
 --  Components and Configurations
 ----------------------------------------------------*/
 
-comp_decl:
+comp_decl<modulep>:
 		vhdl_COMPONENT vhdl_IDENTIFIER comp_decl_1 comp_decl_2 vhdl_END vhdl_COMPONENT vhdl_SEMICOLON
+		{ $$ = new AstVhdlComponent($1, *$2); $$->inLibrary(PARSEP->inLibrary()||PARSEP->inCellDefine());
+	 	  $$->modTrace(v3Global.opt.trace());
+		  $$->addStmtp ($3);
+		  $$->addStmtp ($4);
+		  SYMP->pushNew($$); }
 	;
 
-comp_decl_1:
+comp_decl_1<nodep>:
+		{ $$ = NULL; }
 	|	vhdl_GENERIC formal_param_list vhdl_SEMICOLON
+		{ $$ = $2; }
 	;
 
-comp_decl_2:
+comp_decl_2<nodep>:
+		{ $$ = NULL; }
 	|	vhdl_PORT formal_param_list vhdl_SEMICOLON
+		{ $$ = $2; }
 	;
 
 block_config:

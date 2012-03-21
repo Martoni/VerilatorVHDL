@@ -1028,10 +1028,13 @@ struct AstVhdlComponent : public AstNodeModule {
     // A VHDL Component declaration
     // Write in the Symbol Table the Entity over it,
     // So only one architecture per Component
+private:
+	string m_name;
 public:
     AstVhdlComponent(FileLine* fl, const string& name)
-	: AstNodeModule (fl,name) { }
+	: AstNodeModule (fl,name) { m_name = name; }
     ASTNODE_NODE_FUNCS(VhdlComponent, VHDLCOMPONENT)
+    virtual string name()	const { return "%" + m_name + "_Component"; }
     virtual string verilogKwd() const { return "vhdl_component"; }
 };
 
