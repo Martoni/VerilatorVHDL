@@ -151,6 +151,7 @@ public:
     }
     string   deQuote(FileLine* fileline, string text);
     AstVar* createVHDLVariables (FileLine* fileline, AstNode* m_valuep);
+	void addToLibrary (FileLine* fileline);
     void checkDpiVer(FileLine* fileline, const string& str) {
 	if (str != "DPI-C" && !v3Global.opt.bboxSys()) {
 	    fileline->v3error("Unsupported DPI type '"<<str<<"': Use 'DPI-C'");
@@ -3401,7 +3402,7 @@ context_item:
 
 lib_clause:
 		vhdl_LIBRARY idf_list vhdl_SEMICOLON
-		{ GRAMMARP->m_varIdentifiers.clear(); }
+		{ GRAMMARP->addToLibrary($1); }
 	;
 
 use_clause:
@@ -3504,7 +3505,7 @@ arch_body_2: // Nothing to return here
 
 config_decl:
 		config_start config_decl_1 block_config vhdl_END config_decl_2 vhdl_SEMICOLON
- /* ;config_start : vhdl_CONFIGURATION vhdl_IDENTIFIER vhdl_OF mark vhdl_IS
+ /* ;config_start : vhdl_CONFIGURATION vhdl_IDENTIFIER vhdl_OF type_mark vhdl_IS
     replaced: */
 	;
 
@@ -3873,7 +3874,7 @@ gen_association_element<nodep>:
 --  Names and Expressions
 ----------------------------------------------------*/
 
-mark<nodep>:
+type_mark<nodep>:
 	vhdl_ID_TYPE
 	{ $$ = new AstText ($<fl>1, *$1); }
 |	sel_name
@@ -4070,8 +4071,8 @@ element_association_list2:
 
 /* UNSUP
 qualified_expr:
-	mark vhdl_APOSTROPHE vhdl_LEFTPAREN vhdl_expr vhdl_RIGHTPAREN
-|	mark vhdl_APOSTROPHE aggregate
+	type_mark vhdl_APOSTROPHE vhdl_LEFTPAREN vhdl_expr vhdl_RIGHTPAREN
+|	type_mark vhdl_APOSTROPHE aggregate
 ;
 */
 
@@ -4153,7 +4154,7 @@ unconstrained_array_definition_1:
 ;
 
 index_subtype_definition:
-	mark vhdl_RANGE vhdl_BOX
+	type_mark vhdl_RANGE vhdl_BOX
 ;
 
 constrained_array_definition:
@@ -4186,7 +4187,7 @@ subtype_indic<dtypep>:
 		{ $$ = $1; }
 	|	internal_type_vectored gen_association_list
 		{ $$ = $1; GRAMMARP->addRange($1,$2->castRange(),true); }
-/*	|	mark subtype_indic_1
+/*	|	type_mark subtype_indic_1
 	|	subtype_indic1*/
 ;
 
@@ -4213,9 +4214,9 @@ subtype_indic_1<nodep>:
 ;
 
 subtype_indic1:
-	mark mark range_constraint
-	|	mark range_constraint
-	|	mark mark subtype_indic1_1
+		type_mark type_mark range_constraint
+	|	type_mark range_constraint
+	|	type_mark type_mark subtype_indic1_1
 	;
 
 subtype_indic1_1<nodep>:
@@ -4350,7 +4351,7 @@ signal_list_1:
 ----------------------------------------------------*/
 
 attribute_decl:
-		vhdl_ATTRIBUTE vhdl_IDENTIFIER vhdl_COLON mark vhdl_SEMICOLON
+		vhdl_ATTRIBUTE vhdl_IDENTIFIER vhdl_COLON type_mark vhdl_SEMICOLON
 	;
 
 attribute_spec:
@@ -4477,7 +4478,7 @@ block_stat_8:
 
 
 comp_inst_stat<nodep>:
-        // $3 was mark instead of vhdl_IDENTIFIER
+        // $3 was type_mark instead of vhdl_IDENTIFIER
 		vhdl_IDENTIFIER vhdl_COLON vhdl_IDENTIFIER comp_inst_stat_1 comp_inst_stat_2 vhdl_SEMICOLON
 		{ $$ = new AstCell ($2, *$1, *$3, $5, $4, NULL); }
 	;
@@ -4858,7 +4859,7 @@ comp_config:
 	;
 
 comp_spec:
-		inst_list vhdl_COLON mark
+		inst_list vhdl_COLON type_mark
 	;
 
 comp_config_1:
@@ -4881,7 +4882,7 @@ binding_indic:
 
 entity_aspect:
 		vhdl_ENTITY name
-	|	vhdl_CONFIGURATION mark
+	|	vhdl_CONFIGURATION type_mark
 	|	vhdl_OPEN
 	;
 
@@ -5016,6 +5017,14 @@ AstVar* V3ParseGrammar::createVHDLVariables (FileLine* fileline, AstNode* m_valu
 	}
 	GRAMMARP->m_varIdentifiers.clear();
 	return nodep;
+}
+
+void V3ParseGrammar::addToLibrary (FileLine* fileline) {
+	list<string*>::iterator it;
+	for (it = GRAMMARP->m_varIdentifiers.begin(); it != GRAMMARP->m_varIdentifiers.end(); it++) {
+		PARSEP->addVhdlLibrary(* *it);	
+	}
+	GRAMMARP->m_varIdentifiers.clear();
 }
 
 string V3ParseGrammar::deQuote(FileLine* fileline, string text) {

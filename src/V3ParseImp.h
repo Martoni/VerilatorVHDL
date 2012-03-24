@@ -234,6 +234,7 @@ class V3ParseImp {
 
 	V3SymTable* m_currentEntitySyms;  // Entity linked to the currently parsed architecture
 
+	vector<string> m_vhdl_libraries; // list of libraries in use in the current VHDL files
 
 public:
     // Note these are an exception to using the filename as the debug type
@@ -309,6 +310,15 @@ public:
 
 	V3SymTable* entitySymsp (void) {
 		return m_currentEntitySyms;
+	}
+
+	void addVhdlLibrary (string libname) {
+		m_vhdl_libraries.push_back(libname);
+	}
+
+	
+	void cleanVhdlLibrary (void) {
+		m_vhdl_libraries.clear();
 	}
 
     V3Number* newVhdlBitNumber (FileLine* fl, const char* text);
