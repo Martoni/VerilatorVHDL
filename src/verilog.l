@@ -1195,6 +1195,7 @@ base_specifier	  	  (B|b|O|o|X|x)
   (?i:"with")		{FL; return vhdl_WITH;}
 
   (?i:"xor")		{FL; return vhdl_XOR;}
+  (?i:"xnor")		{FL; return vhdl_XNOR;}
 
   (?i:"std_logic")      {FL; return vhdl_BIT;}
   (?i:"bit")            {FL; return vhdl_BIT;}
@@ -1208,6 +1209,9 @@ base_specifier	  	  (B|b|O|o|X|x)
 
   (?i:"integer")  	{FL; return vhdl_INTEGER; }
   (?i:"false")		{FL; return vhdl_FALSE; }
+
+  (?i:"finish")		{FL; return vhdl_FINISH; }
+  (?i:"stop")		{FL; return vhdl_STOP; }
 
   {space_character}	{}
 

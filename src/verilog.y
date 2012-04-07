@@ -669,6 +669,7 @@ class AstSenTree;
 %token<fl> vhdl_WHILE
 %token<fl> vhdl_WITH
 %token<fl> vhdl_XOR
+%token<fl> vhdl_XNOR
 
 %token<fl> vhdl_EQSYM
 %token<fl> vhdl_NESYM
@@ -720,6 +721,9 @@ class AstSenTree;
 
 %token<fl> vhdl_INTEGER
 %token<fl> vhdl_FALSE
+
+%token<fl> vhdl_FINISH
+%token<fl> vhdl_STOP
 
 %token<strp> vhdl_ID_TYPE
 %token<strp> vhdl_ID_VAR
@@ -3877,8 +3881,6 @@ gen_association_element<nodep>:
 type_mark<nodep>:
 	vhdl_ID_TYPE
 	{ $$ = new AstText ($<fl>1, *$1); }
-|	sel_name
-	{ $$ = NULL; } //TODO: FIX THIS
 ;
 
 vhdl_expr<nodep>:
@@ -3887,6 +3889,8 @@ vhdl_expr<nodep>:
 |	or_relation
 	{ $$ = $1; }
 |	xor_relation
+	{ $$ = $1; }
+|	xnor_relation
 	{ $$ = $1; }
 |	relation
 	{ $$ = $1; }
@@ -3915,6 +3919,13 @@ xor_relation<nodep>:
 	{ $$ = new AstXor ($2, $1, $3); }
 |	xor_relation vhdl_XOR relation
 	{ $$ = new AstXor ($2, $1, $3); }
+;
+
+xnor_relation<nodep>:
+	relation vhdl_XNOR relation
+	{ $$ = new AstXnor ($2, $1, $3); }
+|	xnor_relation vhdl_XNOR relation
+	{ $$ = new AstXnor ($2, $1, $3); }
 ;
 
 /* ;relation   : unary_operator primary   */
@@ -3976,6 +3987,10 @@ primary<nodep>:
 
 name<nodep>:
 	vhdl_ID_VAR
+	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, new AstText($<fl>1, *$1)); }
+|	sel_name
+	{ $$ = $1; } 
+|	vhdl_IDENTIFIER
 	{ $$ = new AstParseRef ($<fl>1, AstParseRefExp::PX_VAR_MEM, new AstText($<fl>1, *$1)); }
 /* UNSUP
 |	vhdl_STRINGLIT
