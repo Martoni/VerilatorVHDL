@@ -4759,12 +4759,16 @@ null_stat: // NULL statement handled at seq_stat
 
 procedure_call_stat<nodep>:
 		procedure_name actual_param_part vhdl_SEMICOLON
-		{ $$ = new AstTaskRef ($<fl>1, $1->castParseRef(), $2); }
+		{ $$ = new AstTaskRef ($<fl>1, $1->castParseRef(), $2); $$->castNodeFTask()->isVhdl(true); }
+	|	vhdl_FINISH vhdl_SEMICOLON // Temporary
+		{ $$ = new AstFinish ($<fl>1); }
+	|	vhdl_STOP vhdl_SEMICOLON // Temporary
+		{ $$ = new AstStop ($<fl>1); }
 	;
 
 function_call_stat<nodep>:
 		function_name actual_param_part vhdl_SEMICOLON
-		{ $$ = new AstFuncRef ($<fl>1, $1->castParseRef(), $2); }
+		{ $$ = new AstFuncRef ($<fl>1, $1->castParseRef(), $2); $$->castNodeFTask()->isVhdl(true);}
 	;
 
 actual_param_part<nodep>:
