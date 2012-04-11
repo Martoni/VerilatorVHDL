@@ -4597,7 +4597,7 @@ procs_stat<nodep>:
 
 procs_stat1<nodep>:
 		vhdl_PROCESS procs_stat1_1 procs_stat1_2 vhdl_BEGIN seq_stats vhdl_END vhdl_PROCESS procs_stat1_3 vhdl_SEMICOLON
-		{ AstNode* processp = new AstBegin($4, "", $3); processp->addNextNull($5); $$ = new AstAlways ($1, $2, processp); }
+		{ $$ = new AstAlways ($1, $2, $3); $$->addNextNull(new AstBegin ($1, "", $5)); }
 	;
 
 procs_stat1_3:
