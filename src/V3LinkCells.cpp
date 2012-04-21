@@ -180,7 +180,6 @@ private:
 	// Module: Pick up modnames, so we can resolve cells later
 	AstVhdlArchitecture* m_vhdlarchip;
 	AstNode* stmtp;
-	AstVhdlArchitecture* testp;
 
 	m_modp = nodep;
 	UINFO(2,"Link VHDL Entity: "<<nodep<<endl);
@@ -201,7 +200,7 @@ private:
 
 	m_vhdlarchip = v3Global.rootp()->vhdlarchip();
 #if 0
-	testp = m_vhdlarchip->castVhdlArchitecture();
+	AstVhdlArchitecture* testp = m_vhdlarchip->castVhdlArchitecture();
 	do {
 		cout << "*****" << testp->name() << testp->belongsToEntity(nodep) << endl;
 		testp->replaceWith(NULL);

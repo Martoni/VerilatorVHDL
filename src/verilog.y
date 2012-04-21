@@ -4202,8 +4202,8 @@ subtype_indic<dtypep>:
 		{ $$ = $1; }
 	|	internal_type_vectored gen_association_list
 		{ $$ = $1; GRAMMARP->addRange($1,$2->castRange(),true); }
-/*	|	type_mark subtype_indic_1
-	|	subtype_indic1*/
+//	|	type_mark subtype_indic_1
+//	|	subtype_indic1
 ;
 
 internal_type_atomic<bdtypep>:
@@ -4220,13 +4220,11 @@ internal_type_vectored<bdtypep>:
 		{ $$ = new AstBasicDType($1,AstBasicDTypeKwd::BIT,signedst_SIGNED); }
 	;
 
-subtype_indic_1<nodep>:
-		{ $$ = NULL; }
-/* UNSUP
-	|	gen_association_list
-		{ $$ = $1; }
-*/
-;
+//subtype_indic_1<nodep>:
+//		{ $$ = NULL; }
+//	|	gen_association_list
+//		{ $$ = $1; }
+//;
 
 subtype_indic1:
 		type_mark type_mark range_constraint
