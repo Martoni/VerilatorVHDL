@@ -150,7 +150,7 @@ public:
 	}
     }
     string   deQuote(FileLine* fileline, string text);
-    AstVar* createVHDLVariables (FileLine* fileline, AstNode* m_valuep);
+    AstVar* createVHDLVariables (FileLine* fileline, AstNode* m_valuep, bool constant);
 	void addToLibrary (FileLine* fileline);
     void checkDpiVer(FileLine* fileline, const string& str) {
 	if (str != "DPI-C" && !v3Global.opt.bboxSys()) {
@@ -4289,7 +4289,7 @@ direction<cbool>:
 constant_decl<nodep>:
 		vhdl_CONSTANT idf_list vhdl_COLON subtype_indic constant_decl_1 vhdl_SEMICOLON
 		{ VARRESET_NONLIST (LPARAM); VARDTYPE($4);
-		  $$ = GRAMMARP->createVHDLVariables ($1, $5); VARRESET()
+		  $$ = GRAMMARP->createVHDLVariables ($1, $5, true); VARRESET()
 		}
 	;
 
@@ -4302,7 +4302,7 @@ constant_decl_1<nodep>:
 signal_decl<nodep>:
 		vhdl_SIGNAL idf_list vhdl_COLON subtype_indic signal_decl_1 signal_decl_2 vhdl_SEMICOLON
 		{ VARRESET_NONLIST (VAR); VARDTYPE($4);
-		  $$ = GRAMMARP->createVHDLVariables ($1, $6); VARRESET()
+		  $$ = GRAMMARP->createVHDLVariables ($1, $6, false); VARRESET()
 		}
 	;
 
@@ -4319,7 +4319,7 @@ signal_decl_2<nodep>:
 variable_decl<varp>:
 		vhdl_VARIABLE idf_list vhdl_COLON subtype_indic variable_decl_1 vhdl_SEMICOLON
 		{ VARRESET_NONLIST (VAR); VARDTYPE($4);
-		  $$ = GRAMMARP->createVHDLVariables ($1, $5); VARRESET()
+		  $$ = GRAMMARP->createVHDLVariables ($1, $5, false); VARRESET()
 		}
 	;
 
@@ -5012,28 +5012,32 @@ AstVar* V3ParseGrammar::createVariable(FileLine* fileline, string name, AstRange
     return nodep;
 }
 
-AstVar* V3ParseGrammar::createVHDLVariables (FileLine* fileline, AstNode* m_valuep) {
-	AstVar* nodep = NULL;
+AstVar* V3ParseGrammar::createVHDLVariables (FileLine* fileline, AstNode* m_valuep, bool constant) {
+	AstNode* nodep = NULL;
 	list<string*>::iterator it;
-	int i = 0;
+
 	for (it = GRAMMARP->m_varIdentifiers.begin(); it != GRAMMARP->m_varIdentifiers.end(); it++)
 	{
-		if (nodep) {
-			nodep = nodep->addNext(VARDONEA(fileline,* *it,NULL,NULL))->castVar();
-			if (m_valuep) {
-			    nodep->valuep (m_valuep);
-			}
-	    }
-		else {
+		cout << "---- HERE " << * *it << endl;
+		if (nodep) { // Add next node
+			nodep = nodep->addNext(VARDONEA(fileline,* *it,NULL,NULL));
+			cout << "1 " << nodep << endl;
+		}
+		else { // Add first node
 			nodep = VARDONEA(fileline,* *it,NULL,NULL);
-			if (m_valuep) {
-			    nodep->valuep (m_valuep);
-			}
-		    SYMP->reinsert(nodep);
+			cout << "2 " << nodep << endl;
+		}
+
+		SYMP->reinsert(nodep);
+		if (m_valuep) { // Assign initial value
+			if (constant)
+		    	nodep->castVar()->valuep (m_valuep);
+			else
+				nodep = new AstInitial (fileline, new AstAssign(fileline, nodep, m_valuep)); 
 		}
 	}
 	GRAMMARP->m_varIdentifiers.clear();
-	return nodep;
+	return nodep->castVar();
 }
 
 void V3ParseGrammar::addToLibrary (FileLine* fileline) {
