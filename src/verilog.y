@@ -4290,7 +4290,7 @@ direction<cbool>:
 constant_decl<nodep>:
 		vhdl_CONSTANT idf_list vhdl_COLON subtype_indic constant_decl_1 vhdl_SEMICOLON
 		{ VARRESET_NONLIST (LPARAM); VARDTYPE($4);
-		  $$ = GRAMMARP->createVHDLVariables ($1, $5, true); VARRESET()
+		  $$ = GRAMMARP->createVHDLVariables ($1, $5, true); VARRESET();
 		}
 	;
 
@@ -4303,7 +4303,7 @@ constant_decl_1<nodep>:
 signal_decl<nodep>:
 		vhdl_SIGNAL idf_list vhdl_COLON subtype_indic signal_decl_1 signal_decl_2 vhdl_SEMICOLON
 		{ VARRESET_NONLIST (VAR); VARDTYPE($4);
-		  $$ = GRAMMARP->createVHDLVariables ($1, $6, false); VARRESET()
+		  $$ = GRAMMARP->createVHDLVariables ($1, $6, false); VARRESET();
 		}
 	;
 
@@ -4320,7 +4320,7 @@ signal_decl_2<nodep>:
 variable_decl<varp>:
 		vhdl_VARIABLE idf_list vhdl_COLON subtype_indic variable_decl_1 vhdl_SEMICOLON
 		{ VARRESET_NONLIST (VAR); VARDTYPE($4);
-		  $$ = GRAMMARP->createVHDLVariables ($1, $5, false); VARRESET()
+		  $$ = GRAMMARP->createVHDLVariables ($1, $5, false); VARRESET();
 		}
 	;
 
