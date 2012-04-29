@@ -5019,14 +5019,11 @@ AstVar* V3ParseGrammar::createVHDLVariables (FileLine* fileline, AstNode* m_valu
 
 	for (it = GRAMMARP->m_varIdentifiers.begin(); it != GRAMMARP->m_varIdentifiers.end(); it++)
 	{
-		cout << "---- HERE " << * *it << endl;
 		if (nodep) { // Add next node
 			nodep = nodep->addNext(VARDONEA(fileline,* *it,NULL,NULL));
-			cout << "1 " << nodep << endl;
 		}
 		else { // Add first node
 			nodep = VARDONEA(fileline,* *it,NULL,NULL);
-			cout << "2 " << nodep << endl;
 		}
 
 		SYMP->reinsert(nodep);
