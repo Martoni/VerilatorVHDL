@@ -3765,7 +3765,7 @@ interf_element<nodep>:
 		interf_element_1 port_idf_list vhdl_COLON interf_element_2 subtype_indic
 		{ VARDTYPE($5); }
 		interf_element_3 interf_element_4
-		{$$ = $2; $$->addNextNull(VARDONEP($$,NULL,NULL)); SYMP->reinsert ($$); }
+		{$$ = VARDONEP($2,NULL,NULL); SYMP->reinsert ($$); }
 	;
 
 generic_formal_param_list<nodep>:
@@ -3797,6 +3797,7 @@ interf_element_1:
 	|	object_class
 	;
 
+// Set Input/Output mode
 interf_element_2:
 	|	mode
 	;
