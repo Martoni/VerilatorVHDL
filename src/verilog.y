@@ -3799,7 +3799,10 @@ interf_element_1:
 
 // Set Input/Output mode
 interf_element_2:
+		/* Empty use IN as default */
+		{ VARIO(INPUT); }
 	|	mode
+		/* Otherwise use mode */
 	;
 
 mode:
