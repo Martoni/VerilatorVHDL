@@ -150,7 +150,7 @@ public:
 	}
     }
     string   deQuote(FileLine* fileline, string text);
-    AstVar* createVHDLVariables (FileLine* fileline, AstNode* m_valuep, bool constant);
+    AstNode* createVHDLVariables (FileLine* fileline, AstNode* m_valuep, bool constant);
 	void addToLibrary (FileLine* fileline);
     void checkDpiVer(FileLine* fileline, const string& str) {
 	if (str != "DPI-C" && !v3Global.opt.bboxSys()) {
@@ -4292,7 +4292,7 @@ direction<cbool>:
 
 constant_decl<nodep>:
 		vhdl_CONSTANT idf_list vhdl_COLON subtype_indic constant_decl_1 vhdl_SEMICOLON
-		{ VARRESET_NONLIST (LPARAM); VARDTYPE($4);
+		{ VARRESET_NONLIST(VAR); VARDTYPE($4);
 		  $$ = GRAMMARP->createVHDLVariables ($1, $5, true); VARRESET();
 		}
 	;
@@ -4305,7 +4305,7 @@ constant_decl_1<nodep>:
 
 signal_decl<nodep>:
 		vhdl_SIGNAL idf_list vhdl_COLON subtype_indic signal_decl_1 signal_decl_2 vhdl_SEMICOLON
-		{ VARRESET_NONLIST (VAR); VARDTYPE($4);
+		{ VARRESET_NONLIST(VAR); VARDTYPE($4);
 		  $$ = GRAMMARP->createVHDLVariables ($1, $6, false); VARRESET();
 		}
 	;
@@ -4320,9 +4320,9 @@ signal_decl_2<nodep>:
 		{ $$ = $2; }
 	;
 
-variable_decl<varp>:
+variable_decl<nodep>:
 		vhdl_VARIABLE idf_list vhdl_COLON subtype_indic variable_decl_1 vhdl_SEMICOLON
-		{ VARRESET_NONLIST (VAR); VARDTYPE($4);
+		{ VARRESET_NONLIST(VAR); VARDTYPE($4);
 		  $$ = GRAMMARP->createVHDLVariables ($1, $5, false); VARRESET();
 		}
 	;
@@ -5016,7 +5016,7 @@ AstVar* V3ParseGrammar::createVariable(FileLine* fileline, string name, AstRange
     return nodep;
 }
 
-AstVar* V3ParseGrammar::createVHDLVariables (FileLine* fileline, AstNode* m_valuep, bool constant) {
+AstNode* V3ParseGrammar::createVHDLVariables (FileLine* fileline, AstNode* m_valuep, bool constant) {
 	AstNode* nodep = NULL;
 	list<string*>::iterator it;
 
@@ -5038,7 +5038,7 @@ AstVar* V3ParseGrammar::createVHDLVariables (FileLine* fileline, AstNode* m_valu
 		}
 	}
 	GRAMMARP->m_varIdentifiers.clear();
-	return nodep->castVar();
+	return nodep;
 }
 
 void V3ParseGrammar::addToLibrary (FileLine* fileline) {
